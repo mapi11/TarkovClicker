@@ -32,11 +32,15 @@ public class InventorySystem : MonoBehaviour
         public List<T> Items;
     }
 
-    [Header("Settings")]
+    [Header("Inventory Settings")]
     public List<InventoryTable> tables = new List<InventoryTable>();
     public List<ItemData> itemDatabase = new List<ItemData>();
     public GameObject dragItemPrefab;
     public GameObject tooltipPrefab;
+
+    [Header("Save Settings")]
+    public bool loadOnStart = true;
+    public string saveFileName = "inventorySave.json";
 
     private GameObject currentDragItem;
     private InventorySlot sourceSlot;
@@ -45,6 +49,11 @@ public class InventorySystem : MonoBehaviour
     void Start()
     {
         InitializeAllTables();
+
+        if (loadOnStart)
+        {
+            LoadInventory();
+        }
     }
 
     void InitializeAllTables()
@@ -57,6 +66,7 @@ public class InventorySystem : MonoBehaviour
 
     public void InitializeTable(InventoryTable table)
     {
+        // Очистка старых слотов
         foreach (var slot in table.slots)
         {
             if (slot != null && slot.gameObject != null)
@@ -64,13 +74,19 @@ public class InventorySystem : MonoBehaviour
         }
         table.slots.Clear();
 
+        // Создание новых слотов
         for (int i = 0; i < table.slotCount; i++)
         {
-            GameObject slotObj = Instantiate(table.slotPrefab, table.slotContainer);
-            InventorySlot slot = slotObj.GetComponent<InventorySlot>();
-            slot.Initialize(this, table.tableId, i);
-            table.slots.Add(slot);
+            CreateNewSlot(table, i);
         }
+    }
+
+    private void CreateNewSlot(InventoryTable table, int index)
+    {
+        GameObject slotObj = Instantiate(table.slotPrefab, table.slotContainer);
+        InventorySlot slot = slotObj.GetComponent<InventorySlot>();
+        slot.Initialize(this, table.tableId, index);
+        table.slots.Add(slot);
     }
 
     public void CreateNewTable(string tableId, Transform container, int slotCount, GameObject slotPrefab)
@@ -101,6 +117,83 @@ public class InventorySystem : MonoBehaviour
         }
     }
 
+    // === Сохранение/Загрузка ===
+    public void SaveInventoryButton()
+    {
+        SaveInventory();
+        Debug.Log("Inventory saved by button!");
+    }
+
+    public void SaveInventory()
+    {
+        List<SlotSaveData> saveData = new List<SlotSaveData>();
+
+        foreach (var table in tables)
+        {
+            foreach (var slot in table.slots)
+            {
+                if (slot.GetItem() != null)
+                {
+                    saveData.Add(new SlotSaveData
+                    {
+                        itemId = slot.GetItem().id,
+                        itemCount = slot.GetCount(),
+                        slotIndex = slot.GetSlotIndex(),
+                        tableId = slot.GetTableId()
+                    });
+                }
+            }
+        }
+
+        string jsonData = JsonUtility.ToJson(new Wrapper<SlotSaveData> { Items = saveData }, true);
+        File.WriteAllText(GetSavePath(), jsonData);
+    }
+
+    public void LoadInventory()
+    {
+        string fullPath = GetSavePath();
+
+        if (!File.Exists(fullPath))
+        {
+            Debug.LogWarning("No save file found at: " + fullPath);
+            return;
+        }
+
+        string jsonData = File.ReadAllText(fullPath);
+        Wrapper<SlotSaveData> wrapper = JsonUtility.FromJson<Wrapper<SlotSaveData>>(jsonData);
+
+        // Очистка всех слотов
+        foreach (var table in tables)
+        {
+            foreach (var slot in table.slots)
+            {
+                slot.ClearSlot();
+            }
+        }
+
+        // Восстановление сохраненных данных
+        foreach (var slotData in wrapper.Items)
+        {
+            InventoryTable table = GetTable(slotData.tableId);
+            if (table == null) continue;
+
+            if (slotData.slotIndex >= 0 && slotData.slotIndex < table.slots.Count)
+            {
+                ItemData item = itemDatabase.Find(i => i.id == slotData.itemId);
+                if (item != null)
+                {
+                    table.slots[slotData.slotIndex].SetItem(item, slotData.itemCount);
+                }
+            }
+        }
+    }
+
+    private string GetSavePath()
+    {
+        return Path.Combine(Application.persistentDataPath, saveFileName);
+    }
+
+    // === Drag & Drop ===
     public void StartDragItem(InventorySlot slot, PointerEventData eventData)
     {
         if (slot.GetItem() == null) return;
@@ -124,16 +217,7 @@ public class InventorySystem : MonoBehaviour
     {
         if (currentDragItem == null) return;
 
-        List<RaycastResult> results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(eventData, results);
-
-        InventorySlot targetSlot = null;
-        foreach (var result in results)
-        {
-            targetSlot = result.gameObject.GetComponent<InventorySlot>();
-            if (targetSlot != null) break;
-        }
-
+        InventorySlot targetSlot = GetTargetSlot(eventData);
         if (targetSlot != null)
         {
             SwapItems(sourceSlot, targetSlot);
@@ -142,6 +226,19 @@ public class InventorySystem : MonoBehaviour
         Destroy(currentDragItem);
         currentDragItem = null;
         sourceSlot = null;
+    }
+
+    private InventorySlot GetTargetSlot(PointerEventData eventData)
+    {
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+
+        foreach (var result in results)
+        {
+            InventorySlot slot = result.gameObject.GetComponent<InventorySlot>();
+            if (slot != null) return slot;
+        }
+        return null;
     }
 
     private void SwapItems(InventorySlot source, InventorySlot target)
@@ -155,6 +252,7 @@ public class InventorySystem : MonoBehaviour
         target.SetItem(sourceItem, sourceCount);
     }
 
+    // === Вспомогательные методы ===
     public void ShowTooltip(ItemData item, Vector2 position)
     {
         if (tooltipPrefab == null) return;
@@ -198,14 +296,10 @@ public class InventorySystem : MonoBehaviour
         ItemData item = itemDatabase.Find(i => i.id == itemId);
         if (item == null) return;
 
+        // Попытка добавить к существующему стаку
         foreach (var slot in table.slots)
         {
-            if (slot.GetItem() == null)
-            {
-                slot.SetItem(item, count);
-                return;
-            }
-            else if (slot.GetItem().id == itemId && item.maxStack > 1)
+            if (slot.GetItem() != null && slot.GetItem().id == itemId && item.maxStack > 1)
             {
                 int newCount = slot.GetCount() + count;
                 if (newCount <= item.maxStack)
@@ -216,79 +310,21 @@ public class InventorySystem : MonoBehaviour
             }
         }
 
+        // Добавление в пустой слот
+        foreach (var slot in table.slots)
+        {
+            if (slot.GetItem() == null)
+            {
+                slot.SetItem(item, count);
+                return;
+            }
+        }
+
         Debug.LogWarning($"No available slots in table {tableId} for item {itemId}");
     }
 
     public InventoryTable GetTable(string tableId)
     {
         return tables.Find(t => t.tableId == tableId);
-    }
-
-    public void SaveInventory(string savePath = "inventorySave.json")
-    {
-        List<SlotSaveData> saveData = new List<SlotSaveData>();
-
-        foreach (var table in tables)
-        {
-            foreach (var slot in table.slots)
-            {
-                if (slot.GetItem() != null)
-                {
-                    saveData.Add(new SlotSaveData
-                    {
-                        itemId = slot.GetItem().id,
-                        itemCount = slot.GetCount(),
-                        slotIndex = slot.GetSlotIndex(),
-                        tableId = slot.GetTableId()
-                    });
-                }
-            }
-        }
-
-        string jsonData = JsonUtility.ToJson(new Wrapper<SlotSaveData> { Items = saveData }, true);
-        File.WriteAllText(Path.Combine(Application.persistentDataPath, savePath), jsonData);
-
-        Debug.Log("Inventory saved to: " + Path.Combine(Application.persistentDataPath, savePath));
-    }
-
-    public void LoadInventory(string savePath = "inventorySave.json")
-    {
-        string fullPath = Path.Combine(Application.persistentDataPath, savePath);
-
-        if (!File.Exists(fullPath))
-        {
-            Debug.LogWarning("No save file found at: " + fullPath);
-            return;
-        }
-
-        string jsonData = File.ReadAllText(fullPath);
-        Wrapper<SlotSaveData> wrapper = JsonUtility.FromJson<Wrapper<SlotSaveData>>(jsonData);
-
-        // Сначала очищаем все слоты
-        foreach (var table in tables)
-        {
-            foreach (var slot in table.slots)
-            {
-                slot.ClearSlot();
-            }
-        }
-
-        // Затем заполняем сохраненными данными
-        foreach (var slotData in wrapper.Items)
-        {
-            InventoryTable table = GetTable(slotData.tableId);
-            if (table == null) continue;
-
-            if (slotData.slotIndex >= 0 && slotData.slotIndex < table.slots.Count)
-            {
-                ItemData item = itemDatabase.Find(i => i.id == slotData.itemId);
-                if (item != null)
-                {
-                    table.slots[slotData.slotIndex].SetItem(item, slotData.itemCount);
-                }
-            }
-        }
-
-        Debug.Log("Inventory loaded from: " + fullPath);
     }
 }

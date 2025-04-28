@@ -15,7 +15,8 @@ MonoBehaviour:
   id: 0
   displayName: Test0
   icon: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  description: Test item 0
+  description: "\u0422\u0435\u0441\u0442\u043E\u0432\u044B\u0439 \u043F\u0440\u0435\u0434\u043C\u0435\u0442
+    \u043F\u043E\u0434 \u043D\u043E\u043C\u0435\u0440\u043E\u043C 0"
   maxStack: 2
   type: 0
   value: 15

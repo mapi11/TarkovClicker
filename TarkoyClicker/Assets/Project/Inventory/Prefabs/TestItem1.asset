@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 1
   displayName: Test1
-  icon: {fileID: 10915, guid: 0000000000000000f000000000000000, type: 0}
-  description: Test item 1
+  icon: {fileID: 21300000, guid: 262f543d0c2edd140a516151c95d0867, type: 3}
+  description: "\u0422\u0435\u0441\u0442\u043E\u0432\u044B\u0439 \u043F\u0440\u0435\u0434\u043C\u0435\u0442
+    \u043F\u043E\u0434 \u043D\u043E\u043C\u0435\u0440\u043E\u043C 1"
   maxStack: 0
-  type: 0
+  type: 1
   value: 5
