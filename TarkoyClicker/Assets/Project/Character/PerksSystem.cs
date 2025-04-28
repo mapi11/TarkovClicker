@@ -1,6 +1,6 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class PerksSystem : MonoBehaviour
 {
@@ -10,127 +10,92 @@ public class PerksSystem : MonoBehaviour
         public string name;
         public int level = 1;
         public float currentProgress;
-        public float nextLevelRequirement = 1f;
-        public float progressMultiplier = 2f;
-        public float bonusPerLevel;
+        public float nextLevelRequirement = 10f;
+        public float progressMultiplier = 1.5f;
+        public float baseBonusPerLevel = 0.5f;
+        public float bonusGrowth = 0.1f; // Ќа сколько увеличиваетс€ бонус с каждым уровнем
+
+        [Header("UI References")]
+        public Slider progressSlider;
+        public TextMeshProUGUI levelText;
+
+        // ƒинамически рассчитываемый бонус
+        public float CurrentBonus => baseBonusPerLevel + (level - 1) * bonusGrowth;
     }
 
     [Header("Perks")]
-    public Perk powerPerk;
     public Perk staminaPerk;
-
-    [Header("UI References")]
-    [SerializeField] private Slider _powerProgressSlider;
-    [SerializeField] private TextMeshProUGUI _powerLevelText;
-    [Space]
-    [SerializeField] private Slider _staminaProgressSlider;
-    [SerializeField] private TextMeshProUGUI _staminaLevelText;
+    public Perk powerPerk;
 
     [Header("Settings")]
-    [SerializeField] private float _baseProgressPerClick = 0.1f;
-    [SerializeField] private TimingClick _timingClick;
-    [SerializeField] private float _staminaIncomeBonus = 0.2f;
+    [SerializeField] private float _powerClickMultiplier = 1.5f;
+    [SerializeField] private float _staminaProgressPerClick = 1f;
 
-    [Header("Test")]
-    public Button staminaUp;
+    public Button upgradeButton;
 
-    private void Start()
+    private PassivePoints _passivePoints;
+    private TimingClick _timingClick;
+
+    private void Awake()
     {
-        InitializePerks();
-        UpdateUI();
+        _passivePoints = FindObjectOfType<PassivePoints>();
+        _timingClick = FindObjectOfType<TimingClick>();
 
-        staminaUp.onClick.AddListener(AddStaminaProgress);
+        InitPerk(ref staminaPerk);
+        InitPerk(ref powerPerk);
+
+       upgradeButton.onClick.AddListener(() => AddStaminaProgress(_staminaProgressPerClick));
     }
 
-    private void InitializePerks()
+    private void InitPerk(ref Perk perk)
     {
-        powerPerk = new Perk()
-        {
-            name = "Power",
-            bonusPerLevel = 0.5f
-        };
-
-        staminaPerk = new Perk()
-        {
-            name = "Stamina",
-            bonusPerLevel = 0.2f
-        };
+        perk.currentProgress = 0f;
+        UpdatePerkUI(perk);
     }
 
-    public void AddPowerProgress()
+    public void AddStaminaProgress(float amount)
     {
-        float staminaBonus = 1f + (staminaPerk.level * staminaPerk.bonusPerLevel);
-        powerPerk.currentProgress += _baseProgressPerClick * staminaBonus;
-
-        if (powerPerk.currentProgress >= powerPerk.nextLevelRequirement)
+        AddPerkProgress(ref staminaPerk, amount, () =>
         {
-            PowerLevelUp();
-        }
-
-        UpdateUI();
+            _passivePoints.UpgradeStamina(staminaPerk.level, staminaPerk.CurrentBonus);
+        });
     }
 
-    private void PowerLevelUp()
+    public void AddPowerProgress(float amount)
     {
-        powerPerk.level++;
-        _timingClick._pointsToAdd += powerPerk.bonusPerLevel;
-
-        powerPerk.currentProgress = 0f;
-        powerPerk.nextLevelRequirement *= powerPerk.progressMultiplier;
+        AddPerkProgress(ref powerPerk, amount, () =>
+        {
+            float multiplier = Mathf.Pow(_powerClickMultiplier, powerPerk.level - 1) * (1 + powerPerk.CurrentBonus);
+            _timingClick.SetPointsMultiplier(multiplier);
+        });
     }
 
-    public void AddStaminaProgress()
+    private void AddPerkProgress(ref Perk perk, float amount, System.Action onLevelUp)
     {
-        staminaPerk.currentProgress += _baseProgressPerClick;
+        perk.currentProgress += amount;
 
-        if (staminaPerk.currentProgress >= staminaPerk.nextLevelRequirement)
+        if (perk.currentProgress >= perk.nextLevelRequirement)
         {
-            StaminaLevelUp();
+            perk.level++;
+            perk.currentProgress = 0f;
+            perk.nextLevelRequirement *= perk.progressMultiplier;
+            onLevelUp?.Invoke();
         }
 
-        UpdateUI();
+        UpdatePerkUI(perk);
     }
 
-    private void StaminaLevelUp()
+    private void UpdatePerkUI(Perk perk)
     {
-        staminaPerk.level++;
-        staminaPerk.currentProgress = 0f;
-        staminaPerk.nextLevelRequirement *= staminaPerk.progressMultiplier;
-
-        // ќбновл€ем интервал пассивного дохода в TimingClick
-        if (_timingClick != null)
+        if (perk.progressSlider != null)
         {
-            _timingClick.UpdatePassiveIncomeInterval(staminaPerk.level);
-        }
-    }
-
-    private void UpdateUI()
-    {
-        if (_powerProgressSlider != null)
-        {
-            _powerProgressSlider.maxValue = powerPerk.nextLevelRequirement;
-            _powerProgressSlider.value = powerPerk.currentProgress;
+            perk.progressSlider.maxValue = perk.nextLevelRequirement;
+            perk.progressSlider.value = perk.currentProgress;
         }
 
-        if (_powerLevelText != null)
+        if (perk.levelText != null)
         {
-            _powerLevelText.text = $"Lvl {powerPerk.level}";
+            perk.levelText.text = $"Lv.{perk.level} (+{perk.CurrentBonus * 100:F1}%)";
         }
-
-        if (_staminaProgressSlider != null)
-        {
-            _staminaProgressSlider.maxValue = staminaPerk.nextLevelRequirement;
-            _staminaProgressSlider.value = staminaPerk.currentProgress;
-        }
-
-        if (_staminaLevelText != null)
-        {
-            _staminaLevelText.text = $"Lvl {staminaPerk.level}";
-        }
-    }
-
-    public float GetStaminaIncomeBonus()
-    {
-        return 1f + (staminaPerk.level * _staminaIncomeBonus);
     }
 }

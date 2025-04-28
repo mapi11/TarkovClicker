@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class PointsSystem : MonoBehaviour
 {
-    public float _PointsCount = 0;
+    public int Points { get; private set; }
 
     public TextMeshProUGUI _txtPoints;
 
@@ -15,6 +15,13 @@ public class PointsSystem : MonoBehaviour
 
     void Update()
     {
-        _txtPoints.text = "Points: " + _PointsCount.ToString();
+        _txtPoints.text = "Points: " + Points.ToString();
+    }
+
+    public void AddPoints(int amount)
+    {
+        Points += amount;
+
+        _txtPoints.text = "Points: " + Points.ToString();
     }
 }
