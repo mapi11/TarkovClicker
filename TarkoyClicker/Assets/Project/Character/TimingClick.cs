@@ -9,6 +9,7 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private Transform _spawnParent;
     [SerializeField] private GameObject _parentHexagon;
     [SerializeField] private Image _spawnedImage;
+    [SerializeField] private Animator _animator;
 
     [Header("Settings")]
     [SerializeField] private Vector2 _scaleRange = new Vector2(2f, 3f);
@@ -20,11 +21,16 @@ public class TimingClick : MonoBehaviour
     private int _basePointsPerClick = 5;
     private float _pointsMultiplier = 1f;
     private GameObject _spawnedObject;
+    private const string TIMING_CLICK_PARAM = "TimingClick";
+    private Coroutine _timingClickCoroutine;
 
     private void Awake()
     {
         _clickButton.onClick.AddListener(OnClick);
         SpawnObject();
+
+        if (_animator == null)
+            _animator = GetComponent<Animator>();
     }
 
     private void Update()
@@ -48,17 +54,38 @@ public class TimingClick : MonoBehaviour
 
     private void OnClick()
     {
+        // Прерываем предыдущую корутину, если она была
+        if (_timingClickCoroutine != null)
+        {
+            StopCoroutine(_timingClickCoroutine);
+        }
+
+        // Запускаем новую корутину
+        _timingClickCoroutine = StartCoroutine(TimingClickRoutine());
+
         if (_spawnedObject == null) return;
 
         float scale = _spawnedObject.transform.localScale.x;
         if (scale >= _targetRange.x && scale <= _targetRange.y)
         {
             int points = Mathf.RoundToInt(_basePointsPerClick * _pointsMultiplier);
-            FindObjectOfType<PointsSystem>()?.AddPoints(points);
-            FindObjectOfType<PerksSystem>()?.AddPowerProgress(1f);
+            FindAnyObjectByType<PointsSystem>()?.AddPoints(points);
+            FindAnyObjectByType<PerksSystem>()?.AddPowerProgress(1f);
         }
 
         DestroyAndRespawn();
+    }
+
+    private System.Collections.IEnumerator TimingClickRoutine()
+    {
+        if (_animator != null)
+        {
+            _animator.SetBool(TIMING_CLICK_PARAM, true);
+
+            yield return new WaitForSeconds(2);
+
+            _animator.SetBool(TIMING_CLICK_PARAM, false);
+        }
     }
 
     private void SpawnObject()

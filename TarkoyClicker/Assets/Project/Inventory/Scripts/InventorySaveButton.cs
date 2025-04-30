@@ -4,12 +4,13 @@ using UnityEngine.UI;
 public class InventorySaveButton : MonoBehaviour
 {
     [SerializeField] private InventorySystem inventorySystem;
-    private Button button;
+    public Button btnSave;
+    public Button btnDelSave;
 
     private void Awake()
     {
-        button = GetComponent<Button>();
-        button.onClick.AddListener(SaveInventory);
+        btnSave.onClick.AddListener(SaveInventory);
+        btnDelSave.onClick.AddListener(DelSaveInventtory);
     }
 
     private void SaveInventory()
@@ -17,7 +18,12 @@ public class InventorySaveButton : MonoBehaviour
         if (inventorySystem != null)
         {
             inventorySystem.SaveInventory();
+            inventorySystem.LoadInventory();
             Debug.Log("Inventory saved!");
         }
+    }
+    private void DelSaveInventtory()
+    {
+        inventorySystem.DeleteSave();
     }
 }

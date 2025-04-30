@@ -38,8 +38,8 @@ public class PerksSystem : MonoBehaviour
 
     private void Awake()
     {
-        _passivePoints = FindObjectOfType<PassivePoints>();
-        _timingClick = FindObjectOfType<TimingClick>();
+        _passivePoints = FindAnyObjectByType<PassivePoints>();
+        _timingClick = FindAnyObjectByType<TimingClick>();
 
         InitPerk(ref staminaPerk);
         InitPerk(ref powerPerk);

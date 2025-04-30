@@ -30,7 +30,7 @@ public class PassivePoints : MonoBehaviour
 
     private void Awake()
     {
-        _pointsSystem = FindObjectOfType<PointsSystem>();
+        _pointsSystem = FindAnyObjectByType<PointsSystem>();
         _pauseButton.onClick.AddListener(PauseIncome);
         _resumeButton.onClick.AddListener(ResumeIncome);
 

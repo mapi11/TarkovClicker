@@ -35,7 +35,12 @@ public class InventorySystem : MonoBehaviour
     [Header("Inventory Settings")]
     public List<InventoryTable> tables = new List<InventoryTable>();
     public List<ItemData> itemDatabase = new List<ItemData>();
+
+    [Header("Drag & Drop Settings")]
+    public GameObject dragItemCanvas; // Перетаскиваемый Canvas (должен быть выше основного UI)
     public GameObject dragItemPrefab;
+
+    [Space]
     public GameObject tooltipPrefab;
 
     [Header("Save Settings")]
@@ -54,6 +59,8 @@ public class InventorySystem : MonoBehaviour
         {
             LoadInventory();
         }
+
+        dragItemCanvas = GameObject.Find("MainCanvas");
     }
 
     void InitializeAllTables()
@@ -126,63 +133,49 @@ public class InventorySystem : MonoBehaviour
 
     public void SaveInventory()
     {
-        List<SlotSaveData> saveData = new List<SlotSaveData>();
-
         foreach (var table in tables)
         {
             foreach (var slot in table.slots)
             {
+                string slotKey = $"{table.tableId}_{slot.GetSlotIndex()}";
+
                 if (slot.GetItem() != null)
                 {
-                    saveData.Add(new SlotSaveData
-                    {
-                        itemId = slot.GetItem().id,
-                        itemCount = slot.GetCount(),
-                        slotIndex = slot.GetSlotIndex(),
-                        tableId = slot.GetTableId()
-                    });
+                    PlayerPrefs.SetString($"{slotKey}_itemId", slot.GetItem().id);
+                    PlayerPrefs.SetInt($"{slotKey}_itemCount", slot.GetCount());
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey($"{slotKey}_itemId");
+                    PlayerPrefs.DeleteKey($"{slotKey}_itemCount");
                 }
             }
         }
-
-        string jsonData = JsonUtility.ToJson(new Wrapper<SlotSaveData> { Items = saveData }, true);
-        File.WriteAllText(GetSavePath(), jsonData);
+        PlayerPrefs.Save(); // Важно сохранить изменения
     }
+
 
     public void LoadInventory()
     {
-        string fullPath = GetSavePath();
-
-        if (!File.Exists(fullPath))
-        {
-            Debug.LogWarning("No save file found at: " + fullPath);
-            return;
-        }
-
-        string jsonData = File.ReadAllText(fullPath);
-        Wrapper<SlotSaveData> wrapper = JsonUtility.FromJson<Wrapper<SlotSaveData>>(jsonData);
-
-        // Очистка всех слотов
         foreach (var table in tables)
         {
             foreach (var slot in table.slots)
             {
-                slot.ClearSlot();
-            }
-        }
+                string slotKey = $"{table.tableId}_{slot.GetSlotIndex()}";
+                string itemId = PlayerPrefs.GetString($"{slotKey}_itemId", "");
 
-        // Восстановление сохраненных данных
-        foreach (var slotData in wrapper.Items)
-        {
-            InventoryTable table = GetTable(slotData.tableId);
-            if (table == null) continue;
-
-            if (slotData.slotIndex >= 0 && slotData.slotIndex < table.slots.Count)
-            {
-                ItemData item = itemDatabase.Find(i => i.id == slotData.itemId);
-                if (item != null)
+                if (!string.IsNullOrEmpty(itemId))
                 {
-                    table.slots[slotData.slotIndex].SetItem(item, slotData.itemCount);
+                    ItemData item = itemDatabase.Find(i => i.id == itemId);
+                    if (item != null)
+                    {
+                        int count = PlayerPrefs.GetInt($"{slotKey}_itemCount", 1);
+                        slot.SetItem(item, count);
+                    }
+                }
+                else
+                {
+                    slot.ClearSlot();
                 }
             }
         }
@@ -199,7 +192,10 @@ public class InventorySystem : MonoBehaviour
         if (slot.GetItem() == null) return;
 
         sourceSlot = slot;
-        currentDragItem = Instantiate(dragItemPrefab, transform);
+
+        // Спавним DragItem в нужном Canvas
+        currentDragItem = Instantiate(dragItemPrefab, dragItemCanvas.transform);
+
         currentDragItem.GetComponent<Image>().sprite = slot.GetItem().icon;
         currentDragItem.transform.position = eventData.position;
         currentDragItem.GetComponent<CanvasGroup>().blocksRaycasts = false;
@@ -218,14 +214,54 @@ public class InventorySystem : MonoBehaviour
         if (currentDragItem == null) return;
 
         InventorySlot targetSlot = GetTargetSlot(eventData);
+
         if (targetSlot != null)
         {
-            SwapItems(sourceSlot, targetSlot);
+            // Если перетаскиваем на слот с тем же предметом и есть стакаемость
+            if (targetSlot.GetItem() != null &&
+                sourceSlot.GetItem() != null &&
+                targetSlot.GetItem().id == sourceSlot.GetItem().id &&
+                targetSlot.GetItem().maxStack > 1)
+            {
+                // Вычисляем сколько можно добавить
+                int availableSpace = targetSlot.GetItem().maxStack - targetSlot.GetCount();
+                int transferAmount = Mathf.Min(availableSpace, sourceSlot.GetCount());
+
+                if (transferAmount > 0)
+                {
+                    // Объединяем стаки
+                    targetSlot.SetItem(targetSlot.GetItem(), targetSlot.GetCount() + transferAmount);
+
+                    // Обновляем исходный слотА
+                    int remaining = sourceSlot.GetCount() - transferAmount;
+                    if (remaining > 0)
+                    {
+                        sourceSlot.SetItem(sourceSlot.GetItem(), remaining);
+                    }
+                    else
+                    {
+                        sourceSlot.ClearSlot();
+                    }
+                }
+                else
+                {
+                    // Если нельзя объединить - просто меняем местами
+                    SwapItems(sourceSlot, targetSlot);
+                }
+            }
+            else
+            {
+                // Если предметы разные или не стакаются - обычный обмен
+                SwapItems(sourceSlot, targetSlot);
+            }
         }
 
         Destroy(currentDragItem);
         currentDragItem = null;
         sourceSlot = null;
+
+        // Сохраняем изменения
+        SaveInventory();
     }
 
     private InventorySlot GetTargetSlot(PointerEventData eventData)
@@ -290,41 +326,85 @@ public class InventorySystem : MonoBehaviour
 
     public void AddItemToTable(string tableId, string itemId, int count = 1)
     {
-        InventoryTable table = tables.Find(t => t.tableId == tableId);
+        InventoryTable table = GetTable(tableId);
         if (table == null) return;
 
         ItemData item = itemDatabase.Find(i => i.id == itemId);
         if (item == null) return;
 
-        // Попытка добавить к существующему стаку
+        // Сначала пробуем добавить к существующим неполным стакам
         foreach (var slot in table.slots)
         {
-            if (slot.GetItem() != null && slot.GetItem().id == itemId && item.maxStack > 1)
+            if (slot.GetItem() != null &&
+                slot.GetItem().id == itemId &&
+                item.maxStack > 1 &&
+                slot.GetCount() < item.maxStack)
             {
-                int newCount = slot.GetCount() + count;
-                if (newCount <= item.maxStack)
-                {
-                    slot.SetItem(item, newCount);
-                    return;
-                }
+                int canAdd = item.maxStack - slot.GetCount();
+                int willAdd = Mathf.Min(canAdd, count);
+
+                slot.SetItem(item, slot.GetCount() + willAdd);
+                count -= willAdd;
+
+                if (count <= 0) return; // Все предметы добавлены
             }
         }
 
-        // Добавление в пустой слот
-        foreach (var slot in table.slots)
+        // Если остались предметы - ищем пустые слоты
+        while (count > 0)
         {
-            if (slot.GetItem() == null)
+            bool added = false;
+
+            foreach (var slot in table.slots)
             {
-                slot.SetItem(item, count);
+                if (slot.GetItem() == null)
+                {
+                    int willAdd = Mathf.Min(item.maxStack, count);
+                    slot.SetItem(item, willAdd);
+                    count -= willAdd;
+                    added = true;
+
+                    if (count <= 0) return;
+                    break;
+                }
+            }
+
+            if (!added)
+            {
+                Debug.LogWarning($"Не удалось добавить {count} предметов {itemId} - инвентарь полон!");
                 return;
             }
         }
-
-        Debug.LogWarning($"No available slots in table {tableId} for item {itemId}");
     }
 
     public InventoryTable GetTable(string tableId)
     {
         return tables.Find(t => t.tableId == tableId);
+    }
+
+    public void DeleteSave()
+    {
+        foreach (var table in tables)
+        {
+            for (int i = 0; i < table.slotCount; i++)
+            {
+                string slotKey = $"{table.tableId}_{i}";
+                PlayerPrefs.DeleteKey($"{slotKey}_itemId");
+                PlayerPrefs.DeleteKey($"{slotKey}_itemCount");
+            }
+        }
+        PlayerPrefs.Save();
+        ClearAllInventory();
+    }
+
+    private void ClearAllInventory()
+    {
+        foreach (var table in tables)
+        {
+            foreach (var slot in table.slots)
+            {
+                slot.ClearSlot();
+            }
+        }
     }
 }

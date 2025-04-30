@@ -7,18 +7,17 @@ public class ItemAdderOnClick : MonoBehaviour
     [SerializeField] private string _targetInventoryId = "Player_Inventory";
     [SerializeField] private string _itemIdToAdd = "health_potion";
     [SerializeField] private int _count = 1;
+    [SerializeField] private int _count2 = 1;
 
     [Header("Ссылки на кнопки")]
     [SerializeField] private Button _addItemButton;
+    [SerializeField] private Button _addItemButton2;
     [SerializeField] private Button _removeItemButton;
 
     void Start()
     {
-        // Настройка кнопки добавления
-        if (_addItemButton == null)
-            _addItemButton = GetComponent<Button>();
-
         _addItemButton.onClick.AddListener(AddItem);
+        _addItemButton2.onClick.AddListener(AddItem2);
 
         // Настройка кнопки удаления
         if (_removeItemButton != null)
@@ -38,6 +37,20 @@ public class ItemAdderOnClick : MonoBehaviour
         }
 
         inventory.AddItemToTable(_targetInventoryId, _itemIdToAdd, _count);
+    }
+    void AddItem2()
+    {
+        InventorySystem inventory = FindObjectOfType<InventorySystem>();
+        if (inventory == null) return;
+
+        // Проверяем наличие свободных слотов
+        if (!inventory.HasEmptySlots(_targetInventoryId))
+        {
+            Debug.Log("Инвентарь полон!");
+            return;
+        }
+
+        inventory.AddItemToTable(_targetInventoryId, _itemIdToAdd, _count2);
     }
 
     void RemoveItemFromSlot0()
