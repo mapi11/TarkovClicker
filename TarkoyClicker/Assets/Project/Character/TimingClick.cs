@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class TimingClick : MonoBehaviour
 {
@@ -17,25 +18,45 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private float _scaleSpeed = 0.1f;
     [SerializeField] private float _minScale = 0.6f;
     [SerializeField] private int _pointsPerClick = 5;
+    public bool IsArmBroken { get; private set; }
+
+    [Header("Debug")]
+    [SerializeField] private Button _pauseButton;
+    [SerializeField] private Button _resumeButton;
 
     private int _basePointsPerClick = 5;
     private float _pointsMultiplier = 1f;
     private GameObject _spawnedObject;
-    private const string TIMING_CLICK_PARAM = "TimingClick";
     private Coroutine _timingClickCoroutine;
+    private Vector3 _originalScale;
+    private Color _originalColor;
 
     private void Awake()
     {
         _clickButton.onClick.AddListener(OnClick);
+
+        _pauseButton.onClick.AddListener(ArmBroken);
+        _resumeButton.onClick.AddListener(ArmHeal);
+
         SpawnObject();
 
         if (_animator == null)
             _animator = GetComponent<Animator>();
+
+        // Сохраняем оригинальные параметры
+        if (_parentHexagon != null)
+        {
+            _originalScale = _parentHexagon.transform.localScale;
+            if (_parentHexagon.GetComponent<Image>() != null)
+            {
+                _originalColor = _parentHexagon.GetComponent<Image>().color;
+            }
+        }
     }
 
-    private void Update()
+    public void Update()
     {
-        if (_spawnedObject == null) return;
+        if (IsArmBroken || _spawnedObject == null) return;
 
         Vector3 newScale = _spawnedObject.transform.localScale - Vector3.one * _scaleSpeed * Time.deltaTime;
         _spawnedObject.transform.localScale = newScale;
@@ -47,6 +68,59 @@ public class TimingClick : MonoBehaviour
             DestroyAndRespawn();
     }
 
+    public void ArmBroken()
+    {
+        IsArmBroken = true;
+
+        // Выключаем родительский объект
+        if (_parentHexagon != null)
+        {
+            _parentHexagon.SetActive(false);
+        }
+
+        // Останавливаем все корутины
+        if (_timingClickCoroutine != null)
+        {
+            StopCoroutine(_timingClickCoroutine);
+            _timingClickCoroutine = null;
+        }
+
+
+        // Уничтожаем текущий spawnedObject
+        if (_spawnedObject != null)
+        {
+            Destroy(_spawnedObject);
+            _spawnedObject = null;
+        }
+    }
+
+    public void ArmHeal()
+    {
+        IsArmBroken = false;
+
+        // Включаем родительский объект
+        if (_parentHexagon != null)
+        {
+            _parentHexagon.SetActive(true);
+
+            // Восстанавливаем оригинальные параметры
+            _parentHexagon.transform.localScale = _originalScale;
+            if (_parentHexagon.GetComponent<Image>() != null)
+            {
+                _parentHexagon.GetComponent<Image>().color = _originalColor;
+            }
+        }
+
+        // Включаем аниматор
+        if (_animator != null)
+        {
+            _animator.enabled = true;
+        }
+
+        // Перезапускаем систему
+        SpawnObject();
+    }
+
     public void SetPointsMultiplier(float multiplier)
     {
         _pointsMultiplier = multiplier;
@@ -54,14 +128,12 @@ public class TimingClick : MonoBehaviour
 
     private void OnClick()
     {
-        // Прерываем предыдущую корутину, если она была
+        if (IsArmBroken) return;
+
         if (_timingClickCoroutine != null)
         {
             StopCoroutine(_timingClickCoroutine);
         }
-
-        // Запускаем новую корутину
-        _timingClickCoroutine = StartCoroutine(TimingClickRoutine());
 
         if (_spawnedObject == null) return;
 
@@ -69,27 +141,29 @@ public class TimingClick : MonoBehaviour
         if (scale >= _targetRange.x && scale <= _targetRange.y)
         {
             int points = Mathf.RoundToInt(_basePointsPerClick * _pointsMultiplier);
-            FindAnyObjectByType<PointsSystem>()?.AddPoints(points);
-            FindAnyObjectByType<PerksSystem>()?.AddPowerProgress(1f);
+            FindObjectOfType<PassivePoints>()?.AddPoints(points);
+            FindObjectOfType<PerksSystem>()?.AddPowerProgress(1f);
+
+            _timingClickCoroutine = StartCoroutine(TimingClickRoutine());
         }
 
         DestroyAndRespawn();
     }
 
-    private System.Collections.IEnumerator TimingClickRoutine()
+    private IEnumerator TimingClickRoutine()
     {
         if (_animator != null)
         {
-            _animator.SetBool(TIMING_CLICK_PARAM, true);
-
-            yield return new WaitForSeconds(2);
-
-            _animator.SetBool(TIMING_CLICK_PARAM, false);
+            _animator.SetBool("TimingClick", true);
+            yield return new WaitForSeconds(1.5f);
+            _animator.SetBool("TimingClick", false);
         }
     }
 
     private void SpawnObject()
     {
+        if (IsArmBroken) return;
+
         _spawnedObject = Instantiate(_spawnPrefab, _spawnParent);
         float randomScale = Random.Range(_scaleRange.x, _scaleRange.y);
         _spawnedObject.transform.localScale = new Vector3(randomScale, randomScale, 1f);
@@ -98,6 +172,8 @@ public class TimingClick : MonoBehaviour
 
     private void DestroyAndRespawn()
     {
+        if (IsArmBroken) return;
+
         if (_spawnedObject != null)
             Destroy(_spawnedObject);
         SpawnObject();

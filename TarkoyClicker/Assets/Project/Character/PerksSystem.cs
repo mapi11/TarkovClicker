@@ -13,14 +13,28 @@ public class PerksSystem : MonoBehaviour
         public float nextLevelRequirement = 10f;
         public float progressMultiplier = 1.5f;
         public float baseBonusPerLevel = 0.5f;
-        public float bonusGrowth = 0.1f; // Ќа сколько увеличиваетс€ бонус с каждым уровнем
+        public float bonusGrowth = 0.1f;
 
         [Header("UI References")]
         public Slider progressSlider;
         public TextMeshProUGUI levelText;
 
-        // ƒинамически рассчитываемый бонус
         public float CurrentBonus => baseBonusPerLevel + (level - 1) * bonusGrowth;
+
+        public void Save(string prefix)
+        {
+            PlayerPrefs.SetInt(prefix + "_level", level);
+            PlayerPrefs.SetFloat(prefix + "_currentProgress", currentProgress);
+            PlayerPrefs.SetFloat(prefix + "_nextLevelReq", nextLevelRequirement);
+            PlayerPrefs.Save();
+        }
+
+        public void Load(string prefix)
+        {
+            level = PlayerPrefs.GetInt(prefix + "_level", 1);
+            currentProgress = PlayerPrefs.GetFloat(prefix + "_currentProgress", 0f);
+            nextLevelRequirement = PlayerPrefs.GetFloat(prefix + "_nextLevelReq", 10f);
+        }
     }
 
     [Header("Perks")]
@@ -29,60 +43,96 @@ public class PerksSystem : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private float _powerClickMultiplier = 1.5f;
-    [SerializeField] private float _staminaProgressPerClick = 1f;
+    public float _staminaProgressPerClick = 1f;
+
+    [Header("Character Level UI")]
+    [SerializeField] private TextMeshProUGUI _txtCharacterLvl;
+    [SerializeField] private Slider _characterLevelSlider;
 
     public Button upgradeButton;
 
     private PassivePoints _passivePoints;
     private TimingClick _timingClick;
 
+    private int _characterLevel = 0;
+    private int _lastTriggeredLevel = 0;
+
     private void Awake()
     {
         _passivePoints = FindAnyObjectByType<PassivePoints>();
         _timingClick = FindAnyObjectByType<TimingClick>();
 
-        InitPerk(ref staminaPerk);
-        InitPerk(ref powerPerk);
+        LoadPerks();
 
-       upgradeButton.onClick.AddListener(() => AddStaminaProgress(_staminaProgressPerClick));
+        if (_characterLevelSlider != null)
+        {
+            _characterLevelSlider.minValue = 0;
+            _characterLevelSlider.maxValue = 10;
+            _characterLevelSlider.value = 0;
+        }
+
+        upgradeButton.onClick.AddListener(() => AddStaminaProgress(_staminaProgressPerClick));
+
+        UpdateCharacterLevel();
     }
 
-    private void InitPerk(ref Perk perk)
+    private void OnApplicationQuit() => SavePerks();
+    private void OnApplicationPause(bool pause) { if (pause) SavePerks(); }
+
+    private void SavePerks()
     {
-        perk.currentProgress = 0f;
-        UpdatePerkUI(perk);
+        staminaPerk.Save("stamina");
+        powerPerk.Save("power");
+    }
+
+    private void LoadPerks()
+    {
+        staminaPerk.Load("stamina");
+        powerPerk.Load("power");
+        UpdatePerkUI(staminaPerk);
+        UpdatePerkUI(powerPerk);
     }
 
     public void AddStaminaProgress(float amount)
     {
-        AddPerkProgress(ref staminaPerk, amount, () =>
+        staminaPerk.currentProgress += amount;
+        SaveImmediately("stamina", ref staminaPerk, () =>
         {
             _passivePoints.UpgradeStamina(staminaPerk.level, staminaPerk.CurrentBonus);
+            UpdateCharacterLevel();
         });
     }
 
     public void AddPowerProgress(float amount)
     {
-        AddPerkProgress(ref powerPerk, amount, () =>
+        powerPerk.currentProgress += amount;
+        SaveImmediately("power", ref powerPerk, () =>
         {
             float multiplier = Mathf.Pow(_powerClickMultiplier, powerPerk.level - 1) * (1 + powerPerk.CurrentBonus);
             _timingClick.SetPointsMultiplier(multiplier);
+            UpdateCharacterLevel();
         });
     }
 
-    private void AddPerkProgress(ref Perk perk, float amount, System.Action onLevelUp)
+    private void SaveImmediately(string prefix, ref Perk perk, System.Action onLevelUp)
     {
-        perk.currentProgress += amount;
+        bool levelUp = false;
 
         if (perk.currentProgress >= perk.nextLevelRequirement)
         {
             perk.level++;
             perk.currentProgress = 0f;
             perk.nextLevelRequirement *= perk.progressMultiplier;
-            onLevelUp?.Invoke();
+            levelUp = true;
         }
 
         UpdatePerkUI(perk);
+        perk.Save(prefix);
+
+        if (levelUp)
+        {
+            onLevelUp?.Invoke();
+        }
     }
 
     private void UpdatePerkUI(Perk perk)
@@ -97,5 +147,42 @@ public class PerksSystem : MonoBehaviour
         {
             perk.levelText.text = $"Lv.{perk.level} (+{perk.CurrentBonus * 100:F1}%)";
         }
+    }
+
+    private void UpdateCharacterLevel()
+    {
+        int newLevel = staminaPerk.level + powerPerk.level;
+        if (newLevel != _characterLevel)
+        {
+            _characterLevel = newLevel;
+            UpdateCharacterLevelUI();
+            CheckForNewCharacterLevel();
+        }
+    }
+
+    private void UpdateCharacterLevelUI()
+    {
+        if (_txtCharacterLvl != null) _txtCharacterLvl.text = $"Level: {_characterLevel}";
+
+        if (_characterLevelSlider != null)
+        {
+            _characterLevelSlider.value = _characterLevel % 10;
+            if (_characterLevel % 10 == 0) _characterLevelSlider.value = 10;
+        }
+    }
+
+    private void CheckForNewCharacterLevel()
+    {
+        int threshold = _characterLevel / 10;
+        if (threshold > _lastTriggeredLevel)
+        {
+            _lastTriggeredLevel = threshold;
+            CharacterNewLevel(_characterLevel);
+        }
+    }
+
+    private void CharacterNewLevel(int newLevel)
+    {
+        Debug.Log($"New milestone: {newLevel}");
     }
 }

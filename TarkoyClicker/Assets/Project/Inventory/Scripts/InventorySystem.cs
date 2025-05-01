@@ -3,7 +3,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
-using System.IO;
 
 public class InventorySystem : MonoBehaviour
 {
@@ -17,50 +16,40 @@ public class InventorySystem : MonoBehaviour
         public GameObject slotPrefab;
     }
 
-    [System.Serializable]
-    public class SlotSaveData
-    {
-        public string itemId;
-        public int itemCount;
-        public int slotIndex;
-        public string tableId;
-    }
-
-    [System.Serializable]
-    private class Wrapper<T>
-    {
-        public List<T> Items;
-    }
-
     [Header("Inventory Settings")]
     public List<InventoryTable> tables = new List<InventoryTable>();
     public List<ItemData> itemDatabase = new List<ItemData>();
 
     [Header("Drag & Drop Settings")]
-    public GameObject dragItemCanvas; // Перетаскиваемый Canvas (должен быть выше основного UI)
+    private string dragCanvasName = "MainCanvas";
+    public Canvas dragItemCanvas;
     public GameObject dragItemPrefab;
-
-    [Space]
     public GameObject tooltipPrefab;
 
-    [Header("Save Settings")]
-    public bool loadOnStart = true;
-    public string saveFileName = "inventorySave.json";
+    [Header("References")]
+    public PerksSystem perksSystem;
+    public TimingClick timingClick;
 
     private GameObject currentDragItem;
     private InventorySlot sourceSlot;
     private GameObject currentTooltip;
 
+    private void Awake()
+    {
+        perksSystem = FindAnyObjectByType<PerksSystem>();
+        timingClick = FindAnyObjectByType<TimingClick>();
+    }
+
     void Start()
     {
-        InitializeAllTables();
-
-        if (loadOnStart)
+        dragItemCanvas = GameObject.Find(dragCanvasName)?.GetComponent<Canvas>();
+        if (dragItemCanvas == null)
         {
-            LoadInventory();
+            Debug.LogError($"Не найден Canvas с именем {dragCanvasName}!");
         }
 
-        dragItemCanvas = GameObject.Find("MainCanvas");
+        InitializeAllTables();
+        LoadInventory();
     }
 
     void InitializeAllTables()
@@ -73,7 +62,6 @@ public class InventorySystem : MonoBehaviour
 
     public void InitializeTable(InventoryTable table)
     {
-        // Очистка старых слотов
         foreach (var slot in table.slots)
         {
             if (slot != null && slot.gameObject != null)
@@ -81,7 +69,6 @@ public class InventorySystem : MonoBehaviour
         }
         table.slots.Clear();
 
-        // Создание новых слотов
         for (int i = 0; i < table.slotCount; i++)
         {
             CreateNewSlot(table, i);
@@ -96,106 +83,74 @@ public class InventorySystem : MonoBehaviour
         table.slots.Add(slot);
     }
 
-    public void CreateNewTable(string tableId, Transform container, int slotCount, GameObject slotPrefab)
+    public void SetItemInSlot(InventorySlot slot, ItemData item, int count = 1)
     {
-        InventoryTable newTable = new InventoryTable
-        {
-            tableId = tableId,
-            slotContainer = container,
-            slotCount = slotCount,
-            slotPrefab = slotPrefab
-        };
-
-        tables.Add(newTable);
-        InitializeTable(newTable);
-    }
-
-    public void RemoveTable(string tableId)
-    {
-        InventoryTable tableToRemove = tables.Find(t => t.tableId == tableId);
-        if (tableToRemove != null)
-        {
-            foreach (var slot in tableToRemove.slots)
-            {
-                if (slot != null && slot.gameObject != null)
-                    Destroy(slot.gameObject);
-            }
-            tables.Remove(tableToRemove);
-        }
-    }
-
-    // === Сохранение/Загрузка ===
-    public void SaveInventoryButton()
-    {
+        slot.SetItem(item, count);
         SaveInventory();
-        Debug.Log("Inventory saved by button!");
     }
 
-    public void SaveInventory()
+    public void ClearSlot(InventorySlot slot)
     {
-        foreach (var table in tables)
+        slot.ClearSlot();
+        SaveInventory();
+    }
+
+    public void AddItemToTable(string tableId, string itemId, int count = 1)
+    {
+        InventoryTable table = GetTable(tableId);
+        if (table == null) return;
+
+        ItemData item = itemDatabase.Find(i => i.id == itemId);
+        if (item == null) return;
+
+        if (item.maxStack > 1)
         {
             foreach (var slot in table.slots)
             {
-                string slotKey = $"{table.tableId}_{slot.GetSlotIndex()}";
+                if (slot.GetItem() != null && slot.GetItem().id == itemId && slot.GetCount() < item.maxStack)
+                {
+                    int canAdd = item.maxStack - slot.GetCount();
+                    int willAdd = Mathf.Min(canAdd, count);
 
-                if (slot.GetItem() != null)
-                {
-                    PlayerPrefs.SetString($"{slotKey}_itemId", slot.GetItem().id);
-                    PlayerPrefs.SetInt($"{slotKey}_itemCount", slot.GetCount());
-                }
-                else
-                {
-                    PlayerPrefs.DeleteKey($"{slotKey}_itemId");
-                    PlayerPrefs.DeleteKey($"{slotKey}_itemCount");
+                    slot.SetItem(item, slot.GetCount() + willAdd);
+                    count -= willAdd;
+
+                    if (count <= 0) break;
                 }
             }
         }
-        PlayerPrefs.Save(); // Важно сохранить изменения
-    }
 
-
-    public void LoadInventory()
-    {
-        foreach (var table in tables)
+        if (count > 0)
         {
             foreach (var slot in table.slots)
             {
-                string slotKey = $"{table.tableId}_{slot.GetSlotIndex()}";
-                string itemId = PlayerPrefs.GetString($"{slotKey}_itemId", "");
+                if (slot.GetItem() == null)
+                {
+                    int willAdd = Mathf.Min(item.maxStack, count);
+                    slot.SetItem(item, willAdd);
+                    count -= willAdd;
 
-                if (!string.IsNullOrEmpty(itemId))
-                {
-                    ItemData item = itemDatabase.Find(i => i.id == itemId);
-                    if (item != null)
-                    {
-                        int count = PlayerPrefs.GetInt($"{slotKey}_itemCount", 1);
-                        slot.SetItem(item, count);
-                    }
-                }
-                else
-                {
-                    slot.ClearSlot();
+                    if (count <= 0) break;
                 }
             }
         }
+
+        if (count > 0)
+        {
+            Debug.LogWarning($"Не хватило места для {count} предметов {item.displayName}");
+        }
+
+        SaveInventory();
+
+        SaveItemData(tableId, itemId, count);
     }
 
-    private string GetSavePath()
-    {
-        return Path.Combine(Application.persistentDataPath, saveFileName);
-    }
-
-    // === Drag & Drop ===
     public void StartDragItem(InventorySlot slot, PointerEventData eventData)
     {
         if (slot.GetItem() == null) return;
 
         sourceSlot = slot;
-
-        // Спавним DragItem в нужном Canvas
         currentDragItem = Instantiate(dragItemPrefab, dragItemCanvas.transform);
-
         currentDragItem.GetComponent<Image>().sprite = slot.GetItem().icon;
         currentDragItem.transform.position = eventData.position;
         currentDragItem.GetComponent<CanvasGroup>().blocksRaycasts = false;
@@ -204,9 +159,7 @@ public class InventorySystem : MonoBehaviour
     public void DragItem(PointerEventData eventData)
     {
         if (currentDragItem != null)
-        {
             currentDragItem.transform.position = eventData.position;
-        }
     }
 
     public void EndDragItem(PointerEventData eventData)
@@ -217,41 +170,27 @@ public class InventorySystem : MonoBehaviour
 
         if (targetSlot != null)
         {
-            // Если перетаскиваем на слот с тем же предметом и есть стакаемость
-            if (targetSlot.GetItem() != null &&
-                sourceSlot.GetItem() != null &&
-                targetSlot.GetItem().id == sourceSlot.GetItem().id &&
-                targetSlot.GetItem().maxStack > 1)
+            if (targetSlot.GetTableId() == "StaminaSlot")
             {
-                // Вычисляем сколько можно добавить
-                int availableSpace = targetSlot.GetItem().maxStack - targetSlot.GetCount();
-                int transferAmount = Mathf.Min(availableSpace, sourceSlot.GetCount());
+                HandleStaminaSlotDrop(targetSlot);
+                return;
+            }
+            else if (targetSlot.GetTableId() == "HealthSlot")
+            {
+                HandleHealthSlotDrop(targetSlot);
+                return;
+            }
+        }
 
-                if (transferAmount > 0)
-                {
-                    // Объединяем стаки
-                    targetSlot.SetItem(targetSlot.GetItem(), targetSlot.GetCount() + transferAmount);
-
-                    // Обновляем исходный слотА
-                    int remaining = sourceSlot.GetCount() - transferAmount;
-                    if (remaining > 0)
-                    {
-                        sourceSlot.SetItem(sourceSlot.GetItem(), remaining);
-                    }
-                    else
-                    {
-                        sourceSlot.ClearSlot();
-                    }
-                }
-                else
-                {
-                    // Если нельзя объединить - просто меняем местами
-                    SwapItems(sourceSlot, targetSlot);
-                }
+        // Оригинальная логика для обычных слотов
+        if (targetSlot != null)
+        {
+            if (CanMergeItems(sourceSlot, targetSlot))
+            {
+                MergeItems(sourceSlot, targetSlot);
             }
             else
             {
-                // Если предметы разные или не стакаются - обычный обмен
                 SwapItems(sourceSlot, targetSlot);
             }
         }
@@ -259,9 +198,201 @@ public class InventorySystem : MonoBehaviour
         Destroy(currentDragItem);
         currentDragItem = null;
         sourceSlot = null;
+    }
 
-        // Сохраняем изменения
+    private void HandleStaminaSlotDrop(InventorySlot targetSlot)
+    {
+        if (sourceSlot.GetItem() == null) return;
+
+        ItemData draggedItem = sourceSlot.GetItem();
+
+        if (draggedItem.type == ItemData.ItemType.Food)
+        {
+            if (perksSystem != null)
+            {
+                perksSystem.AddStaminaProgress(draggedItem.value);
+            }
+
+            int newCount = sourceSlot.GetCount() - 1;
+            if (newCount > 0)
+            {
+                sourceSlot.SetItem(draggedItem, newCount);
+            }
+            else
+            {
+                sourceSlot.ClearSlot();
+            }
+
+            SaveInventory();
+        }
+
+        targetSlot.ClearSlot();
+        Destroy(currentDragItem);
+        currentDragItem = null;
+        sourceSlot = null;
+    }
+
+    private void HandleHealthSlotDrop(InventorySlot targetSlot)
+    {
+        if (sourceSlot.GetItem() == null) return;
+
+        ItemData draggedItem = sourceSlot.GetItem();
+
+        if (draggedItem.type == ItemData.ItemType.Medicine && timingClick != null)
+        {
+            if (timingClick.IsArmBroken)
+            {
+                // Лечим руку
+                timingClick.ArmHeal();
+
+                // Уменьшаем количество предметов
+                int newCount = sourceSlot.GetCount() - 1;
+                if (newCount > 0)
+                {
+                    sourceSlot.SetItem(draggedItem, newCount);
+                }
+                else
+                {
+                    sourceSlot.ClearSlot();
+                }
+
+                SaveInventory();
+            }
+            else
+            {
+                // Если рука не сломана - возвращаем предмет
+                sourceSlot.SetItem(draggedItem, sourceSlot.GetCount());
+                Debug.Log("Рука не сломана, лечение не требуется!");
+            }
+        }
+        else
+        {
+            // Если предмет не Medicine - возвращаем
+            sourceSlot.SetItem(sourceSlot.GetItem(), sourceSlot.GetCount());
+        }
+
+        // Очищаем целевой слот в любом случае
+        targetSlot.ClearSlot();
+        Destroy(currentDragItem);
+        currentDragItem = null;
+        sourceSlot = null;
+    }
+
+    private bool CanMergeItems(InventorySlot source, InventorySlot target)
+    {
+        if (target.GetTableId() == "StaminaSlot" || target.GetTableId() == "HealthSlot")
+            return false;
+
+        return source.GetItem() != null &&
+               target.GetItem() != null &&
+               source.GetItem().id == target.GetItem().id &&
+               source.GetItem().maxStack > 1 &&
+               target.GetCount() < target.GetItem().maxStack;
+    }
+
+    // Обновляем SwapItems для HealthSlot
+    private void SwapItems(InventorySlot a, InventorySlot b)
+    {
+        if (a.GetTableId() == "StaminaSlot" || b.GetTableId() == "StaminaSlot" ||
+            a.GetTableId() == "HealthSlot" || b.GetTableId() == "HealthSlot")
+            return;
+
+        ItemData aItem = a.GetItem();
+        int aCount = a.GetCount();
+        ItemData bItem = b.GetItem();
+        int bCount = b.GetCount();
+
+        a.SetItem(bItem, bCount);
+        b.SetItem(aItem, aCount);
+
         SaveInventory();
+    }
+
+    private void MergeItems(InventorySlot source, InventorySlot target)
+    {
+        int availableSpace = target.GetItem().maxStack - target.GetCount();
+        int transferAmount = Mathf.Min(availableSpace, source.GetCount());
+
+        target.SetItem(target.GetItem(), target.GetCount() + transferAmount);
+
+        int remaining = source.GetCount() - transferAmount;
+        if (remaining > 0)
+            source.SetItem(source.GetItem(), remaining);
+        else
+            source.ClearSlot();
+
+        SaveInventory();
+    }
+
+    public void SaveInventory()
+    {
+        try
+        {
+            foreach (var table in tables)
+            {
+                for (int i = 0; i < table.slots.Count; i++)
+                {
+                    string key = $"{table.tableId}_{i}";
+                    InventorySlot slot = table.slots[i];
+
+                    if (slot.GetItem() != null)
+                    {
+                        PlayerPrefs.SetString($"{key}_id", slot.GetItem().id);
+                        PlayerPrefs.SetInt($"{key}_count", slot.GetCount());
+                    }
+                    else
+                    {
+                        PlayerPrefs.DeleteKey($"{key}_id");
+                        PlayerPrefs.DeleteKey($"{key}_count");
+                    }
+                }
+            }
+            PlayerPrefs.Save();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Ошибка сохранения: {e.Message}");
+        }
+    }
+
+    private void SaveItemData(string tableId, string itemId, int count)
+    {
+        // Логика сохранения предметов напрямую в PlayerPrefs
+        for (int i = 0; i < count; i++)
+        {
+            string key = $"{tableId}_auto_{System.Guid.NewGuid()}";
+            PlayerPrefs.SetString(key, itemId);
+        }
+        PlayerPrefs.Save();
+    }
+
+    public void ForceUpdateInventory()
+    {
+        // Перезагружаем инвентарь при появлении на сцене
+        ClearAllInventory();
+        LoadInventory();
+    }
+
+    public void LoadInventory()
+    {
+        foreach (var table in tables)
+        {
+            for (int i = 0; i < table.slots.Count; i++)
+            {
+                string key = $"{table.tableId}_{i}";
+                string itemId = PlayerPrefs.GetString($"{key}_id", "");
+
+                if (!string.IsNullOrEmpty(itemId))
+                {
+                    ItemData item = itemDatabase.Find(x => x.id == itemId);
+                    if (item != null)
+                    {
+                        int count = PlayerPrefs.GetInt($"{key}_count", 1);
+                        table.slots[i].SetItem(item, count);
+                    }
+                }
+            }
+        }
     }
 
     private InventorySlot GetTargetSlot(PointerEventData eventData)
@@ -277,39 +408,21 @@ public class InventorySystem : MonoBehaviour
         return null;
     }
 
-    private void SwapItems(InventorySlot source, InventorySlot target)
-    {
-        ItemData sourceItem = source.GetItem();
-        int sourceCount = source.GetCount();
-        ItemData targetItem = target.GetItem();
-        int targetCount = target.GetCount();
+    public InventoryTable GetTable(string tableId) => tables.Find(t => t.tableId == tableId);
 
-        source.SetItem(targetItem, targetCount);
-        target.SetItem(sourceItem, sourceCount);
-    }
-
-    // === Вспомогательные методы ===
     public void ShowTooltip(ItemData item, Vector2 position)
     {
         if (tooltipPrefab == null) return;
 
-        if (currentTooltip == null)
-        {
-            currentTooltip = Instantiate(tooltipPrefab, transform);
-        }
-
-        currentTooltip.transform.position = position + new Vector2(0, 50);
-        currentTooltip.GetComponentInChildren<TextMeshProUGUI>().text =
-            $"<b>{item.displayName}</b>\n{item.description}";
-        currentTooltip.SetActive(true);
+        currentTooltip = Instantiate(tooltipPrefab, transform);
+        currentTooltip.transform.position = position;
+        currentTooltip.GetComponentInChildren<TMP_Text>().text = $"{item.displayName}\n{item.description}";
     }
 
     public void HideTooltip()
     {
         if (currentTooltip != null)
-        {
-            currentTooltip.SetActive(false);
-        }
+            Destroy(currentTooltip);
     }
 
     public bool HasEmptySlots(string tableId)
@@ -319,67 +432,10 @@ public class InventorySystem : MonoBehaviour
 
         foreach (InventorySlot slot in table.slots)
         {
-            if (slot.GetItem() == null) return true;
+            if (slot.GetItem() == null)
+                return true;
         }
         return false;
-    }
-
-    public void AddItemToTable(string tableId, string itemId, int count = 1)
-    {
-        InventoryTable table = GetTable(tableId);
-        if (table == null) return;
-
-        ItemData item = itemDatabase.Find(i => i.id == itemId);
-        if (item == null) return;
-
-        // Сначала пробуем добавить к существующим неполным стакам
-        foreach (var slot in table.slots)
-        {
-            if (slot.GetItem() != null &&
-                slot.GetItem().id == itemId &&
-                item.maxStack > 1 &&
-                slot.GetCount() < item.maxStack)
-            {
-                int canAdd = item.maxStack - slot.GetCount();
-                int willAdd = Mathf.Min(canAdd, count);
-
-                slot.SetItem(item, slot.GetCount() + willAdd);
-                count -= willAdd;
-
-                if (count <= 0) return; // Все предметы добавлены
-            }
-        }
-
-        // Если остались предметы - ищем пустые слоты
-        while (count > 0)
-        {
-            bool added = false;
-
-            foreach (var slot in table.slots)
-            {
-                if (slot.GetItem() == null)
-                {
-                    int willAdd = Mathf.Min(item.maxStack, count);
-                    slot.SetItem(item, willAdd);
-                    count -= willAdd;
-                    added = true;
-
-                    if (count <= 0) return;
-                    break;
-                }
-            }
-
-            if (!added)
-            {
-                Debug.LogWarning($"Не удалось добавить {count} предметов {itemId} - инвентарь полон!");
-                return;
-            }
-        }
-    }
-
-    public InventoryTable GetTable(string tableId)
-    {
-        return tables.Find(t => t.tableId == tableId);
     }
 
     public void DeleteSave()
@@ -389,8 +445,8 @@ public class InventorySystem : MonoBehaviour
             for (int i = 0; i < table.slotCount; i++)
             {
                 string slotKey = $"{table.tableId}_{i}";
-                PlayerPrefs.DeleteKey($"{slotKey}_itemId");
-                PlayerPrefs.DeleteKey($"{slotKey}_itemCount");
+                PlayerPrefs.DeleteKey($"{slotKey}_id");
+                PlayerPrefs.DeleteKey($"{slotKey}_count");
             }
         }
         PlayerPrefs.Save();

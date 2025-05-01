@@ -4,8 +4,9 @@ using UnityEngine.UI;
 public class ItemAdderOnClick : MonoBehaviour
 {
     [Header("Основные настройки")]
-    [SerializeField] private string _targetInventoryId = "Player_Inventory";
-    [SerializeField] private string _itemIdToAdd = "health_potion";
+    [SerializeField] private string _targetInventoryId = "Inventory";
+    [SerializeField] private string _itemIdToAdd = "0";
+    [SerializeField] private string _itemIdToAdd2 = "1";
     [SerializeField] private int _count = 1;
     [SerializeField] private int _count2 = 1;
 
@@ -50,7 +51,7 @@ public class ItemAdderOnClick : MonoBehaviour
             return;
         }
 
-        inventory.AddItemToTable(_targetInventoryId, _itemIdToAdd, _count2);
+        inventory.AddItemToTable(_targetInventoryId, _itemIdToAdd2, _count2);
     }
 
     void RemoveItemFromSlot0()

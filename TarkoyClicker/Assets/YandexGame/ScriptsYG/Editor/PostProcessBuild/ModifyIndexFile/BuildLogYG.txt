@@ -1,2 +1,2 @@
-Build path: E:/TelegramDesktop/Telegram Downloads/TarkoyClicker
-Build number: 3
+Build path: E:/TelegramDesktop/Telegram Downloads/TarkoyGym
+Build number: 9

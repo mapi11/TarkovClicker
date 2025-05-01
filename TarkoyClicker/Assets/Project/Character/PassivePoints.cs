@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class PassivePoints : MonoBehaviour
 {
@@ -16,35 +17,50 @@ public class PassivePoints : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private StaminaSettings _staminaSettings;
     [SerializeField] private ParticleSystem _incomeEffect;
+    [SerializeField] private TextMeshProUGUI _txtPoints;
 
-    [Header("Debug")]
-    [SerializeField] private Button _pauseButton;
-    [SerializeField] private Button _resumeButton;
-
-    private PointsSystem _pointsSystem;
+    public int _currentPoints = 0;
     private int _currentStaminaLevel = 1;
     private float _currentBonusMultiplier = 1;
     private float _currentInterval;
     private float _timer;
-    private bool _isPaused;
+
+    private const string POINTS_KEY = "PlayerPoints"; // Ключ для сохранения очков
 
     private void Awake()
     {
-        _pointsSystem = FindAnyObjectByType<PointsSystem>();
-        _pauseButton.onClick.AddListener(PauseIncome);
-        _resumeButton.onClick.AddListener(ResumeIncome);
+        // Загрузка сохраненных очков
+        _currentPoints = PlayerPrefs.GetInt(POINTS_KEY, 0);
+
+        // Инициализация текста очков
+        if (_txtPoints == null)
+        {
+            _txtPoints = GameObject.Find("txtPoints")?.GetComponent<TextMeshProUGUI>();
+        }
 
         UpdateStaminaSettings();
+        UpdatePointsUI();
+    }
+
+    private void OnApplicationQuit()
+    {
+        SavePoints();
+    }
+
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus)
+        {
+            SavePoints();
+        }
     }
 
     private void Update()
     {
-        if (_isPaused) return;
-
         _timer += Time.deltaTime;
         if (_timer >= _currentInterval)
         {
-            AddPoints();
+            GeneratePassiveIncome();
             _timer = 0f;
         }
     }
@@ -65,16 +81,45 @@ public class PassivePoints : MonoBehaviour
         );
     }
 
-    private void AddPoints()
+    private void GeneratePassiveIncome()
     {
         float bonus = 1 + (_currentStaminaLevel * _staminaSettings.incomeBonusPerLevel);
-        int points = Mathf.RoundToInt(_staminaSettings.baseIncome * bonus);
-        _pointsSystem.AddPoints(points);
+        int points = Mathf.RoundToInt(_staminaSettings.baseIncome * bonus * _currentBonusMultiplier);
+        AddPoints(points);
 
         if (_incomeEffect != null)
             _incomeEffect.Play();
     }
 
-    public void PauseIncome() => _isPaused = true;
-    public void ResumeIncome() => _isPaused = false;
+    public void AddPoints(int amount)
+    {
+        _currentPoints += amount;
+        UpdatePointsUI();
+        SavePoints(); // Сохраняем после каждого изменения
+    }
+
+    private void UpdatePointsUI()
+    {
+        if (_txtPoints != null)
+        {
+            _txtPoints.text = $"Points: {_currentPoints}";
+        }
+    }
+
+    private void SavePoints()
+    {
+        PlayerPrefs.SetInt(POINTS_KEY, _currentPoints);
+        PlayerPrefs.Save();
+    }
+
+    // Свойство для доступа к текущим очкам
+    public int Points => _currentPoints;
+
+    // Метод для сброса очков (по желанию)
+    public void ResetPoints()
+    {
+        _currentPoints = 0;
+        PlayerPrefs.DeleteKey(POINTS_KEY);
+        UpdatePointsUI();
+    }
 }

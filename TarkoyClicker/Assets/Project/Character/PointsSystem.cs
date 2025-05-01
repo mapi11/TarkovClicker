@@ -1,27 +1,27 @@
-using TMPro;
-using UnityEngine;
+//using TMPro;
+//using UnityEngine;
 
-public class PointsSystem : MonoBehaviour
-{
-    public int Points { get; private set; }
+//public class PointsSystem : MonoBehaviour
+//{
+//    public int Points { get; private set; }
 
-    public TextMeshProUGUI _txtPoints;
+//    public TextMeshProUGUI _txtPoints;
 
 
-    private void Awake()
-    {
-        _txtPoints = GameObject.Find("txtPoints").GetComponent<TextMeshProUGUI>();
-    }
+//    private void Awake()
+//    {
+//        _txtPoints = GameObject.Find("txtPoints").GetComponent<TextMeshProUGUI>();
+//    }
 
-    void Update()
-    {
-        _txtPoints.text = "Points: " + Points.ToString();
-    }
+//    void Update()
+//    {
+//        _txtPoints.text = "Points: " + Points.ToString();
+//    }
 
-    public void AddPoints(int amount)
-    {
-        Points += amount;
+//    public void AddPoints(int amount)
+//    {
+//        Points += amount;
 
-        _txtPoints.text = "Points: " + Points.ToString();
-    }
-}
+//        _txtPoints.text = "Points: " + Points.ToString();
+//    }
+//}

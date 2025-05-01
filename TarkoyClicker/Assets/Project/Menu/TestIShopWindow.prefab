@@ -96,7 +96,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _targetInventoryId: Shop
-  _itemIdToAdd: 0
+  _itemIdToAdd: Food_0
+  _itemIdToAdd2: Medicine_0
   _count: 1
   _count2: 1
   _addItemButton: {fileID: 3985130832197746426}
@@ -893,8 +894,7 @@ MonoBehaviour:
   dragItemCanvas: {fileID: 0}
   dragItemPrefab: {fileID: 7612806356540511207, guid: 065ef011f689d4b4786624c554fea772, type: 3}
   tooltipPrefab: {fileID: 2226980261241328929, guid: aabab613ceba64644a3c51e10a3ac9c1, type: 3}
-  loadOnStart: 1
-  saveFileName: inventorySave.json
+  perksSystem: {fileID: 0}
 --- !u!114 &8135847386343946043
 MonoBehaviour:
   m_ObjectHideFlags: 0
