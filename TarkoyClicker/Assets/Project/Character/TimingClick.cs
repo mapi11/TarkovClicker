@@ -11,6 +11,8 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private GameObject _parentHexagon;
     [SerializeField] private Image _spawnedImage;
     [SerializeField] private Animator _animator;
+    [SerializeField] private AudioSource _audioSource; // Добавлено для звука
+    [SerializeField] private AudioClip _armBreakSound; // Добавлено для звука поломки
 
     [Header("Settings")]
     [SerializeField] private Vector2 _scaleRange = new Vector2(2f, 3f);
@@ -18,6 +20,7 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private float _scaleSpeed = 0.1f;
     [SerializeField] private float _minScale = 0.6f;
     [SerializeField] private int _pointsPerClick = 5;
+    [SerializeField] private float _armBreakChance = 0.2f; // 20% шанс поломки
     public bool IsArmBroken { get; private set; }
 
     [Header("Debug")]
@@ -42,6 +45,10 @@ public class TimingClick : MonoBehaviour
 
         if (_animator == null)
             _animator = GetComponent<Animator>();
+
+        // Инициализация AudioSource, если его нет
+        if (_audioSource == null)
+            _audioSource = gameObject.AddComponent<AudioSource>();
 
         // Сохраняем оригинальные параметры
         if (_parentHexagon != null)
@@ -72,6 +79,12 @@ public class TimingClick : MonoBehaviour
     {
         IsArmBroken = true;
 
+        // Воспроизводим звук поломки, если он есть
+        if (_armBreakSound != null && _audioSource != null)
+        {
+            _audioSource.PlayOneShot(_armBreakSound);
+        }
+
         // Выключаем родительский объект
         if (_parentHexagon != null)
         {
@@ -84,7 +97,6 @@ public class TimingClick : MonoBehaviour
             StopCoroutine(_timingClickCoroutine);
             _timingClickCoroutine = null;
         }
-
 
         // Уничтожаем текущий spawnedObject
         if (_spawnedObject != null)
@@ -145,6 +157,14 @@ public class TimingClick : MonoBehaviour
             FindObjectOfType<PerksSystem>()?.AddPowerProgress(1f);
 
             _timingClickCoroutine = StartCoroutine(TimingClickRoutine());
+        }
+        else
+        {
+            // С шансом 20% ломаем руку
+            if (Random.value <= _armBreakChance)
+            {
+                ArmBroken();
+            }
         }
 
         DestroyAndRespawn();

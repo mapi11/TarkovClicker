@@ -9,6 +9,7 @@ public class ScavSystem : MonoBehaviour
     [SerializeField] private TextMeshProUGUI txtScav;
     [SerializeField] private TextMeshProUGUI txtScavTimer;
     [SerializeField] private Button btnScav;
+    [SerializeField] private Button btnScavAdd;
     [SerializeField] private Slider chanceSlider;
     [SerializeField] private TextMeshProUGUI txtChanceValue;
     [SerializeField] private TextMeshProUGUI txtCost;
@@ -16,8 +17,9 @@ public class ScavSystem : MonoBehaviour
     [Header("Mission Settings")]
     [SerializeField] private Vector2 scavMissionTimeRange = new Vector2(90f, 150f);
     [SerializeField] private Vector2 scavCooldownTimeRange = new Vector2(180f, 300f);
-    [SerializeField] private int costPerChancePoint = 10;
-    
+    [SerializeField] private int baseCostPerChancePoint = 10; // Базовая стоимость
+    [SerializeField] private float costIncreasePerLevel = 1.05f;
+
     [Header("Loot Settings")]
     [SerializeField] private Vector2Int itemsCountRange = new Vector2Int(1, 3);
     [SerializeField] private Vector2Int itemTypesRange = new Vector2Int(1, 3);
@@ -25,39 +27,31 @@ public class ScavSystem : MonoBehaviour
 
     [Header("Inventory Settings")]
     [SerializeField] private string targetInventoryId = "Inventory";
+    [SerializeField] private int requiredEmptySlots = 1; // Количество необходимых пустых слотов
+
 
     private bool isOnMission = false;
     private bool isOnCooldown = false;
     private float currentTimer = 0f;
-    private int currentChance = 0; // Стартовое значение шанса
-    private InventorySystem inventory;
+    private int currentChance = 50;
     private PassivePoints pointsSystem;
-    private List<ItemReward> pendingRewards = new List<ItemReward>();
-
-    [System.Serializable]
-    private class ItemReward
-    {
-        public string itemId;
-        public int amount;
-        public string saveKey;
-    }
+    PerksSystem perksSystem;
 
     private void Awake()
     {
         btnScav.onClick.AddListener(SendScav);
+        btnScavAdd.onClick.AddListener(ScavAddWatch);
         pointsSystem = FindObjectOfType<PassivePoints>();
+        perksSystem = FindObjectOfType<PerksSystem>();
 
-        UpdateCostDisplay();
-
-        // Настройка слайдера
         chanceSlider.onValueChanged.AddListener(UpdateChanceSettings);
         chanceSlider.minValue = 1;
         chanceSlider.maxValue = 100;
         chanceSlider.value = currentChance;
 
         UpdateUI();
-        LoadPendingRewards();
         LoadState();
+        UpdateCostDisplay();
     }
 
     private void UpdateChanceSettings(float value)
@@ -67,11 +61,11 @@ public class ScavSystem : MonoBehaviour
         UpdateCostDisplay();
     }
 
+
     private void UpdateCostDisplay()
     {
-        int totalCost = currentChance * costPerChancePoint;
-        txtCost.text = $"Цена: {totalCost}";
-        txtCost.color = (pointsSystem != null && totalCost <= pointsSystem.Points) ? Color.green : Color.red;
+        int totalCost = currentChance * CostPerChancePoint; // Используем свойство вместо поля
+        txtCost.text = $"Cost: {totalCost}";
     }
 
     private void Update()
@@ -83,10 +77,7 @@ public class ScavSystem : MonoBehaviour
 
             if (currentTimer <= 0)
             {
-                if (isOnMission)
-                {
-                    ScavBack();
-                }
+                if (isOnMission) ScavBack();
                 else if (isOnCooldown)
                 {
                     isOnCooldown = false;
@@ -94,34 +85,46 @@ public class ScavSystem : MonoBehaviour
                 }
             }
         }
-
-        if (pendingRewards.Count > 0)
-        {
-            TryDeliverPendingRewards();
-        }
     }
 
     private void SendScav()
     {
         if (isOnMission || isOnCooldown) return;
 
-        int totalCost = currentChance * costPerChancePoint;
-        
-        // Проверка наличия средств
+        // Проверка заполненности инвентаря
+        var inventory = InventorySceneSystem.Instance?.GetInventory();
+        if (inventory != null && !inventory.HasEmptySlots(targetInventoryId))
+        {
+            txtScav.text = "Нет места в инвентаре, чтобы отправить дикого";
+            btnScav.interactable = false;
+            return;
+        }
+
+        int totalCost = currentChance * CostPerChancePoint; // Используем свойство
+
         if (pointsSystem == null || pointsSystem.Points < totalCost)
         {
             Debug.Log("Not enough points!");
             return;
         }
 
-        // Оплата
         pointsSystem.AddPoints(-totalCost);
-
         isOnMission = true;
         currentTimer = Random.Range(scavMissionTimeRange.x, scavMissionTimeRange.y);
-        txtScav.text = "Дикий вернётся через:";
-        btnScav.interactable = false;
+        UpdateUI();
         SaveState();
+    }
+
+    private int CostPerChancePoint
+    {
+        get
+        {
+            if (perksSystem == null) return baseCostPerChancePoint;
+
+            // Рассчитываем стоимость с учетом уровня персонажа
+            float cost = baseCostPerChancePoint * Mathf.Pow(costIncreasePerLevel, perksSystem.GetCharacterLevel());
+            return Mathf.RoundToInt(cost);
+        }
     }
 
     private void ScavBack()
@@ -130,7 +133,6 @@ public class ScavSystem : MonoBehaviour
         isOnCooldown = true;
         currentTimer = Random.Range(scavCooldownTimeRange.x, scavCooldownTimeRange.y);
 
-        // Проверка шанса на получение добычи
         if (Random.Range(0, 100) < currentChance)
         {
             GenerateRandomLoot();
@@ -148,9 +150,20 @@ public class ScavSystem : MonoBehaviour
     {
         if (possibleItems.Count == 0) return;
 
+        // Получаем инвентарь через InventorySceneSystem
+        var inventory = InventorySceneSystem.Instance.GetInventory();
+        if (inventory == null)
+        {
+            Debug.LogError("Inventory system not available!");
+            return;
+        }
+
+        // Очищаем только временные данные перед генерацией
+        inventory.ForceUpdateInventory();
+
         int itemTypes = Mathf.Clamp(
             Random.Range(itemTypesRange.x, itemTypesRange.y + 1),
-            1, 
+            1,
             possibleItems.Count
         );
 
@@ -170,74 +183,15 @@ public class ScavSystem : MonoBehaviour
         {
             ItemData selectedType = selectedTypes[Random.Range(0, selectedTypes.Count)];
             int amount = Random.Range(1, selectedType.maxStack + 1);
-            SaveReward(selectedType.id, amount);
-        }
-    }
 
-    private void TryDeliverPendingRewards()
-    {
-        if (inventory == null)
-        {
-            inventory = FindObjectOfType<InventorySystem>();
-            if (inventory == null) return;
+            // Добавляем предмет напрямую в инвентарь
+            inventory.AddItemToTable(targetInventoryId, selectedType.id, amount);
         }
 
-        for (int i = pendingRewards.Count - 1; i >= 0; i--)
+        // Принудительно обновляем инвентарь после добавления
+        if (inventory.gameObject.activeSelf)
         {
-            ItemReward reward = pendingRewards[i];
-            inventory.AddItemToTable(targetInventoryId, reward.itemId, reward.amount);
-            ClearReward(reward);
-            pendingRewards.RemoveAt(i);
-        }
-    }
-
-    private void SaveReward(string itemId, int amount)
-    {
-        int rewardCount = PlayerPrefs.GetInt("scav_rewards_count", 0);
-        string key = $"scav_reward_{rewardCount}";
-        
-        PlayerPrefs.SetString(key, $"{itemId},{amount}");
-        PlayerPrefs.SetInt("scav_rewards_count", rewardCount + 1);
-        
-        pendingRewards.Add(new ItemReward {
-            itemId = itemId,
-            amount = amount,
-            saveKey = key
-        });
-        
-        PlayerPrefs.Save();
-    }
-
-    private void ClearReward(ItemReward reward)
-    {
-        if (!string.IsNullOrEmpty(reward.saveKey))
-        {
-            PlayerPrefs.DeleteKey(reward.saveKey);
-        }
-        PlayerPrefs.Save();
-    }
-
-    public void LoadPendingRewards()
-    {
-        int rewardCount = PlayerPrefs.GetInt("scav_rewards_count", 0);
-        
-        for (int i = 0; i < rewardCount; i++)
-        {
-            string key = $"scav_reward_{i}";
-            if (PlayerPrefs.HasKey(key))
-            {
-                string rewardData = PlayerPrefs.GetString(key);
-                string[] parts = rewardData.Split(',');
-
-                if (parts.Length == 2 && int.TryParse(parts[1], out int amount))
-                {
-                    pendingRewards.Add(new ItemReward {
-                        itemId = parts[0],
-                        amount = amount,
-                        saveKey = key
-                    });
-                }
-            }
+            inventory.ForceUpdateInventory();
         }
     }
 
@@ -252,19 +206,33 @@ public class ScavSystem : MonoBehaviour
     {
         if (isOnMission)
         {
-            txtScav.text = "Дикий вернётся через:";
+            txtScav.text = "Scav returning in:";
             btnScav.interactable = false;
+            btnScavAdd.interactable = false;
         }
         else if (isOnCooldown)
         {
-            txtScav.text = "Дикий отдыхает:";
+            txtScav.text = "Scav resting:";
             btnScav.interactable = false;
+            btnScavAdd.interactable = false;
         }
         else
         {
-            txtScav.text = "Отправить дикого";
+            // Дополнительная проверка при обновлении UI
+            var inventory = InventorySceneSystem.Instance?.GetInventory();
+            if (inventory != null && !inventory.HasEmptySlots(targetInventoryId))
+            {
+                txtScav.text = "Нет места в инвентаре, чтобы отправить дикого";
+                btnScav.interactable = false;
+            }
+            else
+            {
+                txtScav.text = "Send Scav";
+                btnScav.interactable = true;
+            }
+
             txtScavTimer.text = "";
-            btnScav.interactable = true;
+            btnScavAdd.interactable = true;
         }
     }
 
@@ -284,18 +252,22 @@ public class ScavSystem : MonoBehaviour
         currentTimer = PlayerPrefs.GetFloat("scav_currentTimer", 0f);
         currentChance = PlayerPrefs.GetInt("scav_currentChance", 50);
 
-        if (isOnMission || isOnCooldown)
+        if (chanceSlider != null)
         {
-            UpdateUI();
+            chanceSlider.value = currentChance;
         }
+
+        UpdateUI();
     }
 
-    public void AddTestItem(ItemData item)
+    public void ScavAddWatch()
     {
-        if (!possibleItems.Contains(item))
-        {
-            possibleItems.Add(item);
-        }
+        if (isOnMission || isOnCooldown) return;
+
+        int originalChance = currentChance;
+        currentChance = 100;
+        ScavBack();
+        currentChance = originalChance;
     }
 
     public void ClearAllData()
@@ -304,17 +276,8 @@ public class ScavSystem : MonoBehaviour
         PlayerPrefs.DeleteKey("scav_isOnCooldown");
         PlayerPrefs.DeleteKey("scav_currentTimer");
         PlayerPrefs.DeleteKey("scav_currentChance");
-        
-        int rewardCount = PlayerPrefs.GetInt("scav_rewards_count", 0);
-        for (int i = 0; i < rewardCount; i++)
-        {
-            PlayerPrefs.DeleteKey($"scav_reward_{i}");
-        }
-        PlayerPrefs.DeleteKey("scav_rewards_count");
-        
         PlayerPrefs.Save();
-        pendingRewards.Clear();
-        
+
         isOnMission = false;
         isOnCooldown = false;
         currentTimer = 0f;

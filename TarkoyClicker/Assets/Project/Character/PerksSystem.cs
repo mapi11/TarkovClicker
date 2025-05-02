@@ -43,13 +43,19 @@ public class PerksSystem : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private float _powerClickMultiplier = 1.5f;
-    public float _staminaProgressPerClick = 1f;
+    [SerializeField] private float _staminaProgressPerClick = 1f;
+    [Space]
+    [SerializeField] private float _powerUpgradeBaseCost = 500f;
+    [SerializeField] private float _powerUpgradeCostMultiplier = 1.2f;
 
     [Header("Character Level UI")]
     [SerializeField] private TextMeshProUGUI _txtCharacterLvl;
     [SerializeField] private Slider _characterLevelSlider;
 
+    [Header("Buttons")]
     public Button upgradeButton;
+    public Button btnUpgradePower;
+    [SerializeField] private TextMeshProUGUI txtUpgradePower;
 
     private PassivePoints _passivePoints;
     private TimingClick _timingClick;
@@ -72,8 +78,44 @@ public class PerksSystem : MonoBehaviour
         }
 
         upgradeButton.onClick.AddListener(() => AddStaminaProgress(_staminaProgressPerClick));
+        btnUpgradePower.onClick.AddListener(UpgradePower);
 
+        UpdatePowerButtonText(); // Обновляем текст кнопки при старте
         UpdateCharacterLevel();
+    }
+
+    private void UpdatePowerButtonText()
+    {
+        if (txtUpgradePower != null)
+        {
+            int cost = CalculatePowerUpgradeCost();
+            txtUpgradePower.text = $"Upgrade Power\n<size=80%>(Cost: {cost})</size>";
+        }
+    }
+
+    public int GetCharacterLevel()
+    {
+        return _characterLevel;
+    }
+
+    private void UpgradePower()
+    {
+        int cost = CalculatePowerUpgradeCost();
+        if (_passivePoints._currentPoints >= cost)
+        {
+            _passivePoints._currentPoints -= cost;
+            AddPowerProgress(1f);
+            UpdatePowerButtonText(); // Обновляем текст после улучшения
+        }
+        else
+        {
+            Debug.Log("Not enough passive points!");
+        }
+    }
+
+    private int CalculatePowerUpgradeCost()
+    {
+        return Mathf.RoundToInt(_powerUpgradeBaseCost * Mathf.Pow(_powerUpgradeCostMultiplier, powerPerk.level - 1));
     }
 
     private void OnApplicationQuit() => SavePerks();
@@ -132,6 +174,7 @@ public class PerksSystem : MonoBehaviour
         if (levelUp)
         {
             onLevelUp?.Invoke();
+            if (prefix == "power") UpdatePowerButtonText(); // Обновляем текст при повышении уровня силы
         }
     }
 
