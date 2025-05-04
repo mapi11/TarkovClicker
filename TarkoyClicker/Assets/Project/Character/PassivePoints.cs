@@ -10,14 +10,17 @@ public class PassivePoints : MonoBehaviour
         public float baseInterval = 1f;
         public float baseIncome = 1f;
         public float incomeBonusPerLevel = 0.2f;
-        public float intervalReductionPerLevel = 0.2f;
+        public float intervalReductionPerLevel = 0f;
         public float minInterval = 0.1f;
     }
+
+    private PerksSystem _perksSystem;
 
     [Header("Settings")]
     [SerializeField] private StaminaSettings _staminaSettings;
     [SerializeField] private ParticleSystem _incomeEffect;
     [SerializeField] private TextMeshProUGUI _txtPoints;
+    [SerializeField] private int _basePassivePoints = 5;
 
     public int _currentPoints = 0;
     private int _currentStaminaLevel = 1;
@@ -29,6 +32,8 @@ public class PassivePoints : MonoBehaviour
 
     private void Awake()
     {
+        _perksSystem = FindObjectOfType<PerksSystem>();
+
         // Загрузка сохраненных очков
         _currentPoints = PlayerPrefs.GetInt(POINTS_KEY, 0);
 
@@ -83,8 +88,11 @@ public class PassivePoints : MonoBehaviour
 
     private void GeneratePassiveIncome()
     {
-        float bonus = 1 + (_currentStaminaLevel * _staminaSettings.incomeBonusPerLevel);
-        int points = Mathf.RoundToInt(_staminaSettings.baseIncome * bonus * _currentBonusMultiplier);
+        if (_perksSystem == null) return;
+
+        int staminaLevel = _perksSystem.staminaPerk.level;
+        float basePoints = _basePassivePoints * Mathf.Pow(1.2f, staminaLevel - 1);
+        int points = Mathf.RoundToInt(basePoints);
         AddPoints(points);
 
         if (_incomeEffect != null)

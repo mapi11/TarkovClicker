@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Food_1
   m_EditorClassIdentifier: 
   id: Food_1
-  displayName: Test0
+  displayName: Food_1
   icon: {fileID: 21300000, guid: f428b8d9e8ebc2d449bbf12e4cb3f3b6, type: 3}
   description: "\u0415\u0434\u0430 \u0434\u043B\u044F \u043F\u0440\u043E\u043A\u0430\u0447\u043A\u0438
     \u0441\u0442\u0430\u043C\u0438\u043D\u044B (+20 \u0435\u0434.)"

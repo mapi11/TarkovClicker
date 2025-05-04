@@ -11,16 +11,17 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private GameObject _parentHexagon;
     [SerializeField] private Image _spawnedImage;
     [SerializeField] private Animator _animator;
-    [SerializeField] private AudioSource _audioSource; // Добавлено для звука
-    [SerializeField] private AudioClip _armBreakSound; // Добавлено для звука поломки
+    [SerializeField] private AudioSource _audioSource;
+    [SerializeField] private AudioClip _armBreakSound;
+    [SerializeField] private Button _btnHealAdd; // Новая кнопка лечения через рекламу
 
     [Header("Settings")]
     [SerializeField] private Vector2 _scaleRange = new Vector2(2f, 3f);
     [SerializeField] private Vector2 _targetRange = new Vector2(0.8f, 1f);
     [SerializeField] private float _scaleSpeed = 0.1f;
     [SerializeField] private float _minScale = 0.6f;
-    [SerializeField] private int _pointsPerClick = 5;
-    [SerializeField] private float _armBreakChance = 0.2f; // 20% шанс поломки
+    [SerializeField] private int _basePoints = 500;
+    [SerializeField] private float _armBreakChance = 0.2f;
     public bool IsArmBroken { get; private set; }
 
     [Header("Debug")]
@@ -37,20 +38,23 @@ public class TimingClick : MonoBehaviour
     private void Awake()
     {
         _clickButton.onClick.AddListener(OnClick);
-
         _pauseButton.onClick.AddListener(ArmBroken);
         _resumeButton.onClick.AddListener(ArmHeal);
 
+        // Инициализация новой кнопки
+        _btnHealAdd.onClick.AddListener(OnHealAdButtonClick);
+        _btnHealAdd.gameObject.SetActive(false); // Скрываем кнопку по умолчанию
+
+        _basePointsPerClick = _basePoints;
+        LoadMultiplier();
         SpawnObject();
 
         if (_animator == null)
             _animator = GetComponent<Animator>();
 
-        // Инициализация AudioSource, если его нет
         if (_audioSource == null)
             _audioSource = gameObject.AddComponent<AudioSource>();
 
-        // Сохраняем оригинальные параметры
         if (_parentHexagon != null)
         {
             _originalScale = _parentHexagon.transform.localScale;
@@ -61,6 +65,73 @@ public class TimingClick : MonoBehaviour
         }
     }
 
+    public void ArmBroken()
+    {
+        IsArmBroken = true;
+        _btnHealAdd.gameObject.SetActive(true); // Показываем кнопку лечения при поломке
+
+        if (_armBreakSound != null && _audioSource != null)
+        {
+            _audioSource.PlayOneShot(_armBreakSound);
+        }
+
+        if (_parentHexagon != null)
+        {
+            _parentHexagon.SetActive(false);
+        }
+
+        if (_timingClickCoroutine != null)
+        {
+            StopCoroutine(_timingClickCoroutine);
+            _timingClickCoroutine = null;
+        }
+
+        if (_spawnedObject != null)
+        {
+            Destroy(_spawnedObject);
+            _spawnedObject = null;
+        }
+    }
+
+    public void ArmHeal()
+    {
+        IsArmBroken = false;
+        _btnHealAdd.gameObject.SetActive(false); // Скрываем кнопку после лечения
+
+        if (_parentHexagon != null)
+        {
+            _parentHexagon.SetActive(true);
+            _parentHexagon.transform.localScale = _originalScale;
+            if (_parentHexagon.GetComponent<Image>() != null)
+            {
+                _parentHexagon.GetComponent<Image>().color = _originalColor;
+            }
+        }
+
+        if (_animator != null)
+        {
+            _animator.enabled = true;
+        }
+
+        SpawnObject();
+    }
+
+    private void OnHealAdButtonClick()
+    {
+        // Здесь будет вызов рекламы
+        Debug.Log("Показываем рекламу для лечения руки...");
+
+        // В будущем здесь будет коллбэк после просмотра рекламы
+        // Пока просто сразу лечим
+        ArmHeal();
+
+        // В реальном коде это будет выглядеть примерно так:
+        // AdManager.Instance.ShowRewardedAd("arm_heal", () => {
+        //     ArmHeal();
+        // });
+    }
+
+    // Остальные методы остаются без изменений
     public void Update()
     {
         if (IsArmBroken || _spawnedObject == null) return;
@@ -75,67 +146,24 @@ public class TimingClick : MonoBehaviour
             DestroyAndRespawn();
     }
 
-    public void ArmBroken()
-    {
-        IsArmBroken = true;
-
-        // Воспроизводим звук поломки, если он есть
-        if (_armBreakSound != null && _audioSource != null)
-        {
-            _audioSource.PlayOneShot(_armBreakSound);
-        }
-
-        // Выключаем родительский объект
-        if (_parentHexagon != null)
-        {
-            _parentHexagon.SetActive(false);
-        }
-
-        // Останавливаем все корутины
-        if (_timingClickCoroutine != null)
-        {
-            StopCoroutine(_timingClickCoroutine);
-            _timingClickCoroutine = null;
-        }
-
-        // Уничтожаем текущий spawnedObject
-        if (_spawnedObject != null)
-        {
-            Destroy(_spawnedObject);
-            _spawnedObject = null;
-        }
-    }
-
-    public void ArmHeal()
-    {
-        IsArmBroken = false;
-
-        // Включаем родительский объект
-        if (_parentHexagon != null)
-        {
-            _parentHexagon.SetActive(true);
-
-            // Восстанавливаем оригинальные параметры
-            _parentHexagon.transform.localScale = _originalScale;
-            if (_parentHexagon.GetComponent<Image>() != null)
-            {
-                _parentHexagon.GetComponent<Image>().color = _originalColor;
-            }
-        }
-
-        // Включаем аниматор
-        if (_animator != null)
-        {
-            _animator.enabled = true;
-        }
-
-        // Перезапускаем систему
-        SpawnObject();
-    }
-
     public void SetPointsMultiplier(float multiplier)
     {
         _pointsMultiplier = multiplier;
+        SaveMultiplier();
+    }
+
+    private void SaveMultiplier()
+    {
+        PlayerPrefs.SetFloat("click_multiplier", _pointsMultiplier);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadMultiplier()
+    {
+        if (PlayerPrefs.HasKey("click_multiplier"))
+        {
+            _pointsMultiplier = PlayerPrefs.GetFloat("click_multiplier", 1f);
+        }
     }
 
     private void OnClick()
@@ -160,7 +188,6 @@ public class TimingClick : MonoBehaviour
         }
         else
         {
-            // С шансом 20% ломаем руку
             if (Random.value <= _armBreakChance)
             {
                 ArmBroken();

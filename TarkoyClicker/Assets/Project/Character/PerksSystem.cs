@@ -42,7 +42,7 @@ public class PerksSystem : MonoBehaviour
     public Perk powerPerk;
 
     [Header("Settings")]
-    [SerializeField] private float _powerClickMultiplier = 1.5f;
+    [SerializeField] private float _powerClickMultiplier = 1.4f;
     [SerializeField] private float _staminaProgressPerClick = 1f;
     [Space]
     [SerializeField] private float _powerUpgradeBaseCost = 500f;
@@ -133,6 +133,15 @@ public class PerksSystem : MonoBehaviour
         powerPerk.Load("power");
         UpdatePerkUI(staminaPerk);
         UpdatePerkUI(powerPerk);
+        ApplyPowerMultiplier();
+    }
+    private void ApplyPowerMultiplier()
+    {
+        if (_timingClick != null)
+        {
+            float multiplier = Mathf.Pow(_powerClickMultiplier, powerPerk.level - 1);
+            _timingClick.SetPointsMultiplier(multiplier);
+        }
     }
 
     public void AddStaminaProgress(float amount)
@@ -150,8 +159,7 @@ public class PerksSystem : MonoBehaviour
         powerPerk.currentProgress += amount;
         SaveImmediately("power", ref powerPerk, () =>
         {
-            float multiplier = Mathf.Pow(_powerClickMultiplier, powerPerk.level - 1) * (1 + powerPerk.CurrentBonus);
-            _timingClick.SetPointsMultiplier(multiplier);
+            ApplyPowerMultiplier(); // Используем общий метод
             UpdateCharacterLevel();
         });
     }

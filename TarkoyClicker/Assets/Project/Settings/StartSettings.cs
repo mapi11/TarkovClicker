@@ -15,7 +15,7 @@ public class StartSettings : MonoBehaviour
     {
         // Загружаем сохранённую громкость (по умолчанию 1, если нет сохранённого значения)
         float savedVolume = PlayerPrefs.HasKey("masterVolume") ?
-                          PlayerPrefs.GetFloat("masterVolume") : 1f;
+                          PlayerPrefs.GetFloat("masterVolume") : 0.5f;
 
         // Применяем громкость сразу
         AudioListener.volume = savedVolume;

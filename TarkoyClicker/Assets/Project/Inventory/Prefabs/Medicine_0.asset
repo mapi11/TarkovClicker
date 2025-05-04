@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Medicine_0
   m_EditorClassIdentifier: 
   id: Medicine_0
-  displayName: Test1
+  displayName: Medicine_0
   icon: {fileID: 21300000, guid: 47e5244c6d3b2434b92ac4f41b90c6ae, type: 3}
   description: "\u0428\u0438\u043D\u0430 \u043E\u0442 \u043F\u0435\u0440\u0435\u043B\u043E\u043C\u043E\u0432"
   maxStack: 5

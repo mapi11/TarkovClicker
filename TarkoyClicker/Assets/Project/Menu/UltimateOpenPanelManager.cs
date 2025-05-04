@@ -4,7 +4,7 @@ using TMPro;
 using DG.Tweening;
 using System.Collections.Generic;
 
-public class UltimatePanelManager : MonoBehaviour
+public class UltimateOpenPanelManager : MonoBehaviour
 {
     public enum SlideDirection { LeftToRight, RightToLeft }
 
@@ -12,8 +12,8 @@ public class UltimatePanelManager : MonoBehaviour
     public class PanelConfig
     {
         public Button button;
-        public TMP_Text buttonText; // Изменено на TextMeshPro
-        public GameObject panelPrefab;
+        public TMP_Text buttonText;
+        public GameObject panelObject; // Изменено с panelPrefab на panelObject
         [HideInInspector] public string defaultText;
     }
 
@@ -48,6 +48,7 @@ public class UltimatePanelManager : MonoBehaviour
         CalculatePositions();
         StoreDefaultTexts();
         SetupButtonListeners();
+        DeactivateAllPanels();
     }
 
     private void CalculatePositions()
@@ -84,28 +85,25 @@ public class UltimatePanelManager : MonoBehaviour
     {
         if (currentTween != null && currentTween.IsActive()) return;
 
-        // Если клик по активной панели - закрываем
         if (isVisible && currentPanelIndex == panelIndex)
         {
             HidePanel();
             return;
         }
 
-        // Если другая панель открыта - заменяем контент
         if (isVisible)
         {
             ReplaceContent(panelIndex);
             return;
         }
 
-        // Если панель закрыта - открываем новую
         ShowPanel(panelIndex);
     }
 
     private void ShowPanel(int panelIndex)
     {
         currentPanelIndex = panelIndex;
-        CreateContent(panelIndex);
+        ActivatePanel(panelIndex);
         UpdateButtonText(panelIndex, closeSymbol);
 
         currentTween = slidingWindow.DOAnchorPos(shownPosition, slideDuration)
@@ -119,7 +117,7 @@ public class UltimatePanelManager : MonoBehaviour
             .SetEase(slideEase)
             .OnComplete(() => {
                 isVisible = false;
-                DestroyCurrentPanel();
+                DeactivateCurrentPanel();
                 ResetAllButtonTexts();
                 currentPanelIndex = -1;
             });
@@ -127,30 +125,27 @@ public class UltimatePanelManager : MonoBehaviour
 
     private void ReplaceContent(int panelIndex)
     {
-        // Эффект переключения контента
         currentTween = contentContainer.DOShakeScale(contentSwitchEffectDuration, 0.1f)
             .OnComplete(() => {
-                DestroyCurrentPanel();
+                DeactivateCurrentPanel();
                 currentPanelIndex = panelIndex;
-                CreateContent(panelIndex);
+                ActivatePanel(panelIndex);
                 UpdateButtonText(panelIndex, closeSymbol);
             });
     }
 
-    private void CreateContent(int panelIndex)
+    private void ActivatePanel(int panelIndex)
     {
-        currentPanel = Instantiate(panels[panelIndex].panelPrefab, contentContainer);
-        currentPanel.name = panels[panelIndex].panelPrefab.name;
+        DeactivateAllPanels();
+        currentPanel = panels[panelIndex].panelObject;
+        currentPanel.SetActive(true);
     }
 
     private void UpdateButtonText(int panelIndex, string text)
     {
         if (panelIndex < 0 || panelIndex >= panels.Count) return;
 
-        // Сбрасываем все тексты
         ResetAllButtonTexts();
-
-        // Устанавливаем новый текст для активной кнопки
         if (panels[panelIndex].buttonText != null)
         {
             panels[panelIndex].buttonText.text = text;
@@ -168,13 +163,23 @@ public class UltimatePanelManager : MonoBehaviour
         }
     }
 
-
-    private void DestroyCurrentPanel()
+    private void DeactivateCurrentPanel()
     {
         if (currentPanel != null)
         {
-            Destroy(currentPanel);
+            currentPanel.SetActive(false);
             currentPanel = null;
+        }
+    }
+
+    private void DeactivateAllPanels()
+    {
+        foreach (var panel in panels)
+        {
+            if (panel.panelObject != null)
+            {
+                panel.panelObject.SetActive(false);
+            }
         }
     }
 
@@ -192,7 +197,6 @@ public class UltimatePanelManager : MonoBehaviour
 //#if UNITY_EDITOR
 //    private void OnValidate()
 //    {
-//        // Автоматически находим TextMeshPro компонент если не установлен
 //        foreach (var panel in panels)
 //        {
 //            if (panel.button != null && panel.buttonText == null)
