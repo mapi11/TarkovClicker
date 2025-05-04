@@ -89,7 +89,7 @@ public class PerksSystem : MonoBehaviour
         if (txtUpgradePower != null)
         {
             int cost = CalculatePowerUpgradeCost();
-            txtUpgradePower.text = $"Upgrade Power\n<size=80%>(Cost: {cost})</size>";
+            txtUpgradePower.text = $"Улучшить силу за: \n<size=80%>({cost} Рублей)</size>";
         }
     }
 

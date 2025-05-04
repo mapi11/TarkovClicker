@@ -676,7 +676,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5668470158064803390, guid: 0bdf2eb8c633d4b46b4ba7f6c5b37d57, type: 3}
       propertyPath: m_text
-      value: Shop
+      value: "\u041C\u0430\u0433\u0430\u0437\u0438\u043D"
+      objectReference: {fileID: 0}
+    - target: {fileID: 5668470158064803390, guid: 0bdf2eb8c633d4b46b4ba7f6c5b37d57, type: 3}
+      propertyPath: m_fontSize
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 6670516799748090470, guid: 0bdf2eb8c633d4b46b4ba7f6c5b37d57, type: 3}
       propertyPath: m_AnchorMax.y

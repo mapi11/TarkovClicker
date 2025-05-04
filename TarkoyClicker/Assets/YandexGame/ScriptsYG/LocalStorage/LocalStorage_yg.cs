@@ -6,6 +6,8 @@ namespace YG
 {
     public partial class YandexGame
     {
+        public static Action RewardedAdEvent { get; internal set; }
+
         public static class LocalStorage
         {
             [DllImport("__Internal")]

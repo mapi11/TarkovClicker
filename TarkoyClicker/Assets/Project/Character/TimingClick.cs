@@ -13,7 +13,7 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private Animator _animator;
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private AudioClip _armBreakSound;
-    [SerializeField] private Button _btnHealAdd; // Новая кнопка лечения через рекламу
+    [SerializeField] private Button _btnHealAdd;
 
     [Header("Settings")]
     [SerializeField] private Vector2 _scaleRange = new Vector2(2f, 3f);
@@ -41,13 +41,22 @@ public class TimingClick : MonoBehaviour
         _pauseButton.onClick.AddListener(ArmBroken);
         _resumeButton.onClick.AddListener(ArmHeal);
 
-        // Инициализация новой кнопки
         _btnHealAdd.onClick.AddListener(OnHealAdButtonClick);
-        _btnHealAdd.gameObject.SetActive(false); // Скрываем кнопку по умолчанию
+        _btnHealAdd.gameObject.SetActive(false);
 
         _basePointsPerClick = _basePoints;
         LoadMultiplier();
-        SpawnObject();
+        LoadArmState(); // Загружаем состояние руки при старте
+
+        if (IsArmBroken)
+        {
+            // Если рука была сломана, сразу применяем эффекты
+            ApplyBrokenState();
+        }
+        else
+        {
+            SpawnObject();
+        }
 
         if (_animator == null)
             _animator = GetComponent<Animator>();
@@ -65,10 +74,37 @@ public class TimingClick : MonoBehaviour
         }
     }
 
+    private void OnApplicationQuit()
+    {
+        SaveArmState();
+    }
+
+    private void OnDisable()
+    {
+        SaveArmState();
+    }
+
+    private void SaveArmState()
+    {
+        PlayerPrefs.SetInt("ArmBrokenState", IsArmBroken ? 1 : 0);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadArmState()
+    {
+        IsArmBroken = PlayerPrefs.GetInt("ArmBrokenState", 0) == 1;
+    }
+
     public void ArmBroken()
     {
         IsArmBroken = true;
-        _btnHealAdd.gameObject.SetActive(true); // Показываем кнопку лечения при поломке
+        SaveArmState(); // Сохраняем состояние при поломке
+        ApplyBrokenState();
+    }
+
+    private void ApplyBrokenState()
+    {
+        _btnHealAdd.gameObject.SetActive(true);
 
         if (_armBreakSound != null && _audioSource != null)
         {
@@ -96,7 +132,8 @@ public class TimingClick : MonoBehaviour
     public void ArmHeal()
     {
         IsArmBroken = false;
-        _btnHealAdd.gameObject.SetActive(false); // Скрываем кнопку после лечения
+        SaveArmState(); // Сохраняем состояние при лечении
+        _btnHealAdd.gameObject.SetActive(false);
 
         if (_parentHexagon != null)
         {
@@ -118,17 +155,8 @@ public class TimingClick : MonoBehaviour
 
     private void OnHealAdButtonClick()
     {
-        // Здесь будет вызов рекламы
         Debug.Log("Показываем рекламу для лечения руки...");
-
-        // В будущем здесь будет коллбэк после просмотра рекламы
-        // Пока просто сразу лечим
         ArmHeal();
-
-        // В реальном коде это будет выглядеть примерно так:
-        // AdManager.Instance.ShowRewardedAd("arm_heal", () => {
-        //     ArmHeal();
-        // });
     }
 
     // Остальные методы остаются без изменений

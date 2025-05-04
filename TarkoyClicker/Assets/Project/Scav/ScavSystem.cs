@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 using System.Collections;
+using YG;
 
 public class ScavSystem : MonoBehaviour
 {
@@ -33,7 +34,11 @@ public class ScavSystem : MonoBehaviour
     [SerializeField] private string targetInventoryId = "Inventory";
     [SerializeField] private int requiredEmptySlots = 1;
 
-    [Space]
+    [Header("Inventory Settings")]
+    public YandexGame yandexGame;
+    private const int REWARD_AD_ID_ADD_LOOT = 1;
+    private const int REWARD_AD_ID_SKIP_COOLDOWN = 2;
+
     [SerializeField] private UltimateOpenPanelManager panelManager;
 
     private Coroutine closePanelCoroutine;
@@ -46,7 +51,7 @@ public class ScavSystem : MonoBehaviour
     private void Awake()
     {
         btnScav.onClick.AddListener(SendScav);
-        btnScavAdd.onClick.AddListener(ScavAddWatch);
+        btnScavAdd.onClick.AddListener(ScavAddReward);
         btnSkipCooldown.onClick.AddListener(SkipCooldown);
         btnScavUpdate.onClick.AddListener(CheckInventoryAndReturn);
         pointsSystem = FindObjectOfType<PassivePoints>();
@@ -60,6 +65,9 @@ public class ScavSystem : MonoBehaviour
 
         UpdateCostDisplay();
         UpdateUI();
+
+        YandexGame.RewardVideoEvent += OnRewardedAdSuccess;
+
     }
 
     private void OnApplicationQuit()
@@ -224,10 +232,7 @@ public class ScavSystem : MonoBehaviour
     {
         if (!isOnCooldown) return;
 
-        currentTimer = 0f;
-        isOnCooldown = false;
-        UpdateUI();
-        SaveState();
+        YandexGame.RewVideoShow(REWARD_AD_ID_SKIP_COOLDOWN);
     }
 
     private void UpdateUI()
@@ -239,11 +244,11 @@ public class ScavSystem : MonoBehaviour
                 bool hasSpace = inventorySystem != null && inventorySystem.HasEmptySlots(targetInventoryId);
 
                 btnScavUpdate.gameObject.SetActive(!hasSpace);
-                txtScav.text = hasSpace ? "Scavenger is returning..." : "Waiting for inventory space";
+                txtScav.text = hasSpace ? "Дикий возвращается..." : "Недостаточно места в инвентаре";
             }
             else
             {
-                txtScav.text = "Scavenger will return in:";
+                txtScav.text = "Дикий верёнтся через:";
                 btnScavUpdate.gameObject.SetActive(false);
             }
 
@@ -253,7 +258,7 @@ public class ScavSystem : MonoBehaviour
         }
         else if (isOnCooldown)
         {
-            txtScav.text = "Scavenger is resting:";
+            txtScav.text = "Дикий отдыхает:";
             btnScav.interactable = false;
             btnScavAdd.interactable = false;
             btnScavUpdate.gameObject.SetActive(false);
@@ -261,7 +266,7 @@ public class ScavSystem : MonoBehaviour
         }
         else
         {
-            txtScav.text = "Send Scavenger";
+            txtScav.text = "Отправить дикого";
             btnScav.interactable = true;
             btnScavAdd.interactable = true;
             txtScavTimer.text = "";
@@ -314,6 +319,37 @@ public class ScavSystem : MonoBehaviour
         currentChance = 100;
         ScavBack();
         currentChance = originalChance;
+    }
+    public void ScavAddReward()
+    {
+        YandexGame.RewVideoShow(REWARD_AD_ID_ADD_LOOT);
+    }
+    private void OnRewardedAdSuccess(int rewardId)
+    {
+        switch (rewardId)
+        {
+            case REWARD_AD_ID_ADD_LOOT:
+                ScavAddWatch();
+                break;
+
+            case REWARD_AD_ID_SKIP_COOLDOWN:
+                // Пропускаем кулдаун только после полного просмотра
+                currentTimer = 0f;
+                isOnCooldown = false;
+                UpdateUI();
+                SaveState();
+                break;
+
+            default:
+                Debug.LogWarning($"Unknown reward ID: {rewardId}");
+                break;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        // Отписываемся от события при уничтожении объекта
+        YandexGame.RewardVideoEvent -= OnRewardedAdSuccess;
     }
 
     public void ClearAllData()

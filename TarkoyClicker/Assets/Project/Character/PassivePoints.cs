@@ -110,7 +110,7 @@ public class PassivePoints : MonoBehaviour
     {
         if (_txtPoints != null)
         {
-            _txtPoints.text = $"Points: {_currentPoints}";
+            _txtPoints.text = $"Рубли: {_currentPoints}";
         }
     }
 
