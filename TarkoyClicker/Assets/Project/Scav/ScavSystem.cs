@@ -22,6 +22,7 @@ public class ScavSystem : MonoBehaviour
     [SerializeField] private Vector2 scavMissionTimeRange = new Vector2(90f, 150f);
     [SerializeField] private Vector2 scavCooldownTimeRange = new Vector2(180f, 300f);
     [SerializeField] private int baseCostPerChancePoint = 10;
+    [SerializeField] private float costMultiplierPerLevel = 1.2f;
     [SerializeField] private int skipCooldownCost = 100;
 
     [Header("Loot Settings")]
@@ -30,7 +31,7 @@ public class ScavSystem : MonoBehaviour
     [SerializeField] private List<ItemData> possibleItems = new List<ItemData>();
 
     [Header("Inventory Settings")]
-    [SerializeField] private InventorySystem inventorySystem; // Прокидывается через инспектор
+    [SerializeField] private InventorySystem inventorySystem;
     [SerializeField] private string targetInventoryId = "Inventory";
     [SerializeField] private int requiredEmptySlots = 1;
 
@@ -47,6 +48,7 @@ public class ScavSystem : MonoBehaviour
     private float currentTimer = 0f;
     private int currentChance = 50;
     private PassivePoints pointsSystem;
+    private PerksSystem perksSystem;
 
     private void Awake()
     {
@@ -55,6 +57,8 @@ public class ScavSystem : MonoBehaviour
         btnSkipCooldown.onClick.AddListener(SkipCooldown);
         btnScavUpdate.onClick.AddListener(CheckInventoryAndReturn);
         pointsSystem = FindObjectOfType<PassivePoints>();
+        perksSystem = FindObjectOfType<PerksSystem>(); // Инициализация системы перков
+
 
         LoadState();
 
@@ -63,11 +67,25 @@ public class ScavSystem : MonoBehaviour
         chanceSlider.maxValue = 100;
         chanceSlider.value = currentChance;
 
-        UpdateCostDisplay();
         UpdateUI();
-
         YandexGame.RewardVideoEvent += OnRewardedAdSuccess;
+    }
 
+    private void Start()
+    {
+        // Рассчитываем базовую стоимость с учетом уровня при старте
+        if (perksSystem != null)
+        {
+            baseCostPerChancePoint = Mathf.RoundToInt(baseCostPerChancePoint *
+                                    Mathf.Pow(costMultiplierPerLevel, perksSystem._characterLevel - 1));
+        }
+        UpdateCostDisplay();
+    }
+
+    private void UpdateCostDisplay()
+    {
+        int totalCost = currentChance * baseCostPerChancePoint;
+        txtCost.text = $"{totalCost} Рублей";
     }
 
     private void OnApplicationQuit()
@@ -117,12 +135,6 @@ public class ScavSystem : MonoBehaviour
         currentChance = Mathf.RoundToInt(value);
         txtChanceValue.text = $"{currentChance}%";
         UpdateCostDisplay();
-    }
-
-    private void UpdateCostDisplay()
-    {
-        int totalCost = currentChance * baseCostPerChancePoint;
-        txtCost.text = $"Cost: {totalCost}";
     }
 
     private void SendScav()

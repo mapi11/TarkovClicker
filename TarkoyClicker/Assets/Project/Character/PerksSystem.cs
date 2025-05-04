@@ -60,7 +60,7 @@ public class PerksSystem : MonoBehaviour
     private PassivePoints _passivePoints;
     private TimingClick _timingClick;
 
-    private int _characterLevel = 0;
+    public int _characterLevel = 0;
     private int _lastTriggeredLevel = 0;
 
     private void Awake()
