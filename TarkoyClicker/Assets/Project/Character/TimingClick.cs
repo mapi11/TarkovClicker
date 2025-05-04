@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using YG;
 
 public class TimingClick : MonoBehaviour
 {
@@ -28,6 +29,8 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private Button _pauseButton;
     [SerializeField] private Button _resumeButton;
 
+    private const int REWARD_AD_ID_HEAL_ARM = 3;
+
     private int _basePointsPerClick = 5;
     private float _pointsMultiplier = 1f;
     private GameObject _spawnedObject;
@@ -47,6 +50,8 @@ public class TimingClick : MonoBehaviour
         _basePointsPerClick = _basePoints;
         LoadMultiplier();
         LoadArmState(); // «агружаем состо€ние руки при старте
+
+        YandexGame.RewardVideoEvent += OnRewardedAdSuccess;
 
         if (IsArmBroken)
         {
@@ -152,11 +157,18 @@ public class TimingClick : MonoBehaviour
 
         SpawnObject();
     }
+    private void OnRewardedAdSuccess(int rewardId)
+    {
+        if (rewardId == REWARD_AD_ID_HEAL_ARM)
+        {
+            ArmHeal();
+        }
+    }
 
     private void OnHealAdButtonClick()
     {
         Debug.Log("ѕоказываем рекламу дл€ лечени€ руки...");
-        ArmHeal();
+        YandexGame.RewVideoShow(REWARD_AD_ID_HEAL_ARM);
     }
 
     // ќстальные методы остаютс€ без изменений
@@ -252,5 +264,9 @@ public class TimingClick : MonoBehaviour
         if (_spawnedObject != null)
             Destroy(_spawnedObject);
         SpawnObject();
+    }
+    private void OnDestroy()
+    {
+        YandexGame.RewardVideoEvent -= OnRewardedAdSuccess;
     }
 }
