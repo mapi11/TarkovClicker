@@ -14,6 +14,7 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private Animator _animator;
     [SerializeField] private AudioSource _audioSource;
     [SerializeField] private AudioClip _armBreakSound;
+    [SerializeField] private AudioClip _clickSound; // Добавлен звук клика
     [SerializeField] private Button _btnHealAdd;
 
     [Header("Settings")]
@@ -49,13 +50,12 @@ public class TimingClick : MonoBehaviour
 
         _basePointsPerClick = _basePoints;
         LoadMultiplier();
-        LoadArmState(); // Загружаем состояние руки при старте
+        LoadArmState();
 
         YandexGame.RewardVideoEvent += OnRewardedAdSuccess;
 
         if (IsArmBroken)
         {
-            // Если рука была сломана, сразу применяем эффекты
             ApplyBrokenState();
         }
         else
@@ -103,7 +103,7 @@ public class TimingClick : MonoBehaviour
     public void ArmBroken()
     {
         IsArmBroken = true;
-        SaveArmState(); // Сохраняем состояние при поломке
+        SaveArmState();
         ApplyBrokenState();
     }
 
@@ -137,7 +137,7 @@ public class TimingClick : MonoBehaviour
     public void ArmHeal()
     {
         IsArmBroken = false;
-        SaveArmState(); // Сохраняем состояние при лечении
+        SaveArmState();
         _btnHealAdd.gameObject.SetActive(false);
 
         if (_parentHexagon != null)
@@ -157,6 +157,7 @@ public class TimingClick : MonoBehaviour
 
         SpawnObject();
     }
+
     private void OnRewardedAdSuccess(int rewardId)
     {
         if (rewardId == REWARD_AD_ID_HEAL_ARM)
@@ -171,8 +172,7 @@ public class TimingClick : MonoBehaviour
         YandexGame.RewVideoShow(REWARD_AD_ID_HEAL_ARM);
     }
 
-    // Остальные методы остаются без изменений
-    public void Update()
+    private void Update()
     {
         if (IsArmBroken || _spawnedObject == null) return;
 
@@ -225,6 +225,7 @@ public class TimingClick : MonoBehaviour
             FindObjectOfType<PerksSystem>()?.AddPowerProgress(1f);
 
             _timingClickCoroutine = StartCoroutine(TimingClickRoutine());
+            _audioSource.PlayOneShot(_clickSound);
         }
         else
         {
@@ -242,7 +243,7 @@ public class TimingClick : MonoBehaviour
         if (_animator != null)
         {
             _animator.SetBool("TimingClick", true);
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSeconds(1f);
             _animator.SetBool("TimingClick", false);
         }
     }
@@ -265,6 +266,7 @@ public class TimingClick : MonoBehaviour
             Destroy(_spawnedObject);
         SpawnObject();
     }
+
     private void OnDestroy()
     {
         YandexGame.RewardVideoEvent -= OnRewardedAdSuccess;
