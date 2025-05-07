@@ -794,7 +794,17 @@ MonoBehaviour:
   itemDatabase:
   - {fileID: 11400000, guid: 1a7446fc7cb27a24eb19e2222005e75a, type: 2}
   - {fileID: 11400000, guid: da0aa66b5190366488122d2d78337f06, type: 2}
+  - {fileID: 11400000, guid: 1e79d76e7a655f14c9fabd90f60767e8, type: 2}
+  - {fileID: 11400000, guid: 814305fc1a2c9204691c509005b86930, type: 2}
+  - {fileID: 11400000, guid: cdcb4cea357734e4ebc2fe89fb7ed6a6, type: 2}
+  - {fileID: 11400000, guid: c0e8bdbd656742741be22fc166d123bb, type: 2}
+  - {fileID: 11400000, guid: 2617441d7e3e057418e0b7ff786ed88b, type: 2}
+  - {fileID: 11400000, guid: a56ff2c2ea78f3546a7882a14dfedd12, type: 2}
+  - {fileID: 11400000, guid: 57a51bf65762eff458218b135aaea854, type: 2}
+  - {fileID: 11400000, guid: d8241a00fd201fb4daec464bece894e4, type: 2}
+  - {fileID: 11400000, guid: 9eff2b55a34b6054686af1018ba18e30, type: 2}
   - {fileID: 11400000, guid: 3f6436069f0899d45b1e5a5899ab8d3b, type: 2}
+  - {fileID: 11400000, guid: c9c54457ba7731345a242e081037c545, type: 2}
   dragItemCanvas: {fileID: 0}
   dragItemPrefab: {fileID: 7612806356540511207, guid: 065ef011f689d4b4786624c554fea772, type: 3}
   tooltipPrefab: {fileID: 2226980261241328929, guid: aabab613ceba64644a3c51e10a3ac9c1, type: 3}

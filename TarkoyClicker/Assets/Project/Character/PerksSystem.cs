@@ -37,6 +37,8 @@ public class PerksSystem : MonoBehaviour
         }
     }
 
+    public event System.Action OnCharacterUpgrade;
+
     [Header("Perks")]
     public Perk staminaPerk;
     public Perk powerPerk;
@@ -53,9 +55,11 @@ public class PerksSystem : MonoBehaviour
     [SerializeField] private Slider _characterLevelSlider;
 
     [Header("Buttons")]
-    public Button upgradeButton;
+    //public Button upgradeButton;
     public Button btnUpgradePower;
     [SerializeField] private TextMeshProUGUI txtUpgradePower;
+
+    public event System.Action OnLevelUp;
 
     private PassivePoints _passivePoints;
     private TimingClick _timingClick;
@@ -73,11 +77,11 @@ public class PerksSystem : MonoBehaviour
         if (_characterLevelSlider != null)
         {
             _characterLevelSlider.minValue = 0;
-            _characterLevelSlider.maxValue = 10;
+            _characterLevelSlider.maxValue = 5;
             _characterLevelSlider.value = 0;
         }
 
-        upgradeButton.onClick.AddListener(() => AddStaminaProgress(_staminaProgressPerClick));
+        //upgradeButton.onClick.AddListener(() => AddStaminaProgress(_staminaProgressPerClick));
         btnUpgradePower.onClick.AddListener(UpgradePower);
 
         UpdatePowerButtonText(); // Обновляем текст кнопки при старте
@@ -208,7 +212,13 @@ public class PerksSystem : MonoBehaviour
             _characterLevel = newLevel;
             UpdateCharacterLevelUI();
             CheckForNewCharacterLevel();
+            OnLevelUp?.Invoke(); // Вызов события при изменении уровня
         }
+    }
+    private void CharacterUpgrade()
+    {
+        Debug.Log("Персонаж прокачен!");
+        OnCharacterUpgrade?.Invoke(); // Уведомляем подписчиков
     }
 
     private void UpdateCharacterLevelUI()
@@ -217,18 +227,18 @@ public class PerksSystem : MonoBehaviour
 
         if (_characterLevelSlider != null)
         {
-            _characterLevelSlider.value = _characterLevel % 10;
-            if (_characterLevel % 10 == 0) _characterLevelSlider.value = 10;
+            _characterLevelSlider.value = _characterLevel % 5;
+            if (_characterLevel % 5 == 0) _characterLevelSlider.value = 5;
         }
     }
 
     private void CheckForNewCharacterLevel()
     {
-        int threshold = _characterLevel / 10;
+        int threshold = _characterLevel / 5; // Получаем текущий порог (каждые 10 уровней)
         if (threshold > _lastTriggeredLevel)
         {
             _lastTriggeredLevel = threshold;
-            CharacterNewLevel(_characterLevel);
+            CharacterUpgrade(); // Вызываем метод прокачки
         }
     }
 

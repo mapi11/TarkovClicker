@@ -26,9 +26,9 @@ public class TimingClick : MonoBehaviour
     [SerializeField] private float _armBreakChance = 0.2f;
     public bool IsArmBroken { get; private set; }
 
-    [Header("Debug")]
-    [SerializeField] private Button _pauseButton;
-    [SerializeField] private Button _resumeButton;
+    //[Header("Debug")]
+    //[SerializeField] private Button _pauseButton;
+    //[SerializeField] private Button _resumeButton;
 
     private const int REWARD_AD_ID_HEAL_ARM = 3;
 
@@ -42,8 +42,8 @@ public class TimingClick : MonoBehaviour
     private void Awake()
     {
         _clickButton.onClick.AddListener(OnClick);
-        _pauseButton.onClick.AddListener(ArmBroken);
-        _resumeButton.onClick.AddListener(ArmHeal);
+        //_pauseButton.onClick.AddListener(ArmBroken);
+        //_resumeButton.onClick.AddListener(ArmHeal);
 
         _btnHealAdd.onClick.AddListener(OnHealAdButtonClick);
         _btnHealAdd.gameObject.SetActive(false);
@@ -243,7 +243,7 @@ public class TimingClick : MonoBehaviour
         if (_animator != null)
         {
             _animator.SetBool("TimingClick", true);
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(1.4f);
             _animator.SetBool("TimingClick", false);
         }
     }

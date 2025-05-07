@@ -10,6 +10,7 @@ public class ItemData : ScriptableObject
     public int maxStack = 1;
     public ItemType type;
     public int value;
+    public int Count;
 
     public enum ItemType
     {

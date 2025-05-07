@@ -71,7 +71,7 @@ public class ShopSellSlot : MonoBehaviour, IDropHandler
     {
         ItemData item = slot.GetItem();
         int count = slot.GetCount();
-        int pointsToAdd = item.value * count;
+        int pointsToAdd = item.Count * count;
 
         passivePoints.AddPoints(pointsToAdd);
         slot.ClearSlot();

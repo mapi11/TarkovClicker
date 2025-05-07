@@ -60,6 +60,12 @@ public class ScavSystem : MonoBehaviour
         perksSystem = FindObjectOfType<PerksSystem>(); // Инициализация системы перков
 
 
+        perksSystem = FindObjectOfType<PerksSystem>();
+        if (perksSystem != null)
+        {
+            perksSystem.OnLevelUp += HandleLevelUp; // Подписка на событие
+        }
+
         LoadState();
 
         chanceSlider.onValueChanged.AddListener(UpdateChanceSettings);
@@ -85,7 +91,7 @@ public class ScavSystem : MonoBehaviour
     private void UpdateCostDisplay()
     {
         int totalCost = currentChance * baseCostPerChancePoint;
-        txtCost.text = $"{totalCost} Рублей";
+        txtCost.text = $"{totalCost} ";
     }
 
     private void OnApplicationQuit()
@@ -360,8 +366,17 @@ public class ScavSystem : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Отписываемся от события при уничтожении объекта
+        if (perksSystem != null)
+        {
+            perksSystem.OnLevelUp -= HandleLevelUp; // Отписка при уничтожении
+        }
         YandexGame.RewardVideoEvent -= OnRewardedAdSuccess;
+    }
+
+    private void HandleLevelUp()
+    {
+        baseCostPerChancePoint = Mathf.RoundToInt(baseCostPerChancePoint * costMultiplierPerLevel);
+        UpdateCostDisplay(); // Обновление текста стоимости
     }
 
     public void ClearAllData()

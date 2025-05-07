@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fdca5edc2e72e04fb4aaf28bb86985a, type: 3}
+  m_Name: Food_6
+  m_EditorClassIdentifier: 
+  id: Food_6
+  displayName: "\u0417\u0435\u043B\u0451\u043D\u044B\u0439 \u0448\u043F\u0440\u0438\u0446"
+  icon: {fileID: 21300000, guid: b3178a21bc3da36449e622741179deb4, type: 3}
+  description: "\u0428\u043F\u0440\u0438\u0446 \u0434\u043B\u044F \u044D\u043D\u0435\u0440\u0433\u0438\u0438
+    \n(+28 \u0435\u0434.)\n(\u0426\u0435\u043D\u0430: 700\u0440.)\n"
+  maxStack: 1
+  type: 0
+  value: 28
+  Count: 780
