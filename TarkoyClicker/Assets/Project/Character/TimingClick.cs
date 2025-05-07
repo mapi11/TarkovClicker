@@ -243,7 +243,7 @@ public class TimingClick : MonoBehaviour
         if (_animator != null)
         {
             _animator.SetBool("TimingClick", true);
-            yield return new WaitForSeconds(1.4f);
+            yield return new WaitForSeconds(1.2f);
             _animator.SetBool("TimingClick", false);
         }
     }

@@ -31,7 +31,7 @@ public class PerksSystem : MonoBehaviour
 
         public void Load(string prefix)
         {
-            level = PlayerPrefs.GetInt(prefix + "_level", 1);
+            level = PlayerPrefs.GetInt(prefix + "_level", 0);
             currentProgress = PlayerPrefs.GetFloat(prefix + "_currentProgress", 0f);
             nextLevelRequirement = PlayerPrefs.GetFloat(prefix + "_nextLevelReq", 10f);
         }

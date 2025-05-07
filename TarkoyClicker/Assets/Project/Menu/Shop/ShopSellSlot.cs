@@ -19,7 +19,6 @@ public class ShopSellSlot : MonoBehaviour, IDropHandler
 
     private void FindInventorySystem()
     {
-        // Ищем родительский объект инвентаря по имени (включая неактивные)
         Transform inventoryParent = FindDeepChild(transform.root, inventoryParentName);
 
         if (inventoryParent != null)
@@ -35,7 +34,7 @@ public class ShopSellSlot : MonoBehaviour, IDropHandler
 
     private void FindPassivePoints()
     {
-        passivePoints = FindObjectOfType<PassivePoints>(true); // Ищем даже неактивные
+        passivePoints = FindObjectOfType<PassivePoints>(true);
 
         if (passivePoints == null)
         {
@@ -43,7 +42,6 @@ public class ShopSellSlot : MonoBehaviour, IDropHandler
         }
     }
 
-    // Рекурсивный поиск объекта по имени в иерархии
     private Transform FindDeepChild(Transform parent, string name)
     {
         if (parent.name == name) return parent;
@@ -64,19 +62,28 @@ public class ShopSellSlot : MonoBehaviour, IDropHandler
         InventorySlot sourceSlot = eventData.pointerDrag?.GetComponent<InventorySlot>();
         if (sourceSlot == null || sourceSlot.GetItem() == null) return;
 
-        SellItem(sourceSlot);
+        SellSingleItem(sourceSlot);
     }
 
-    private void SellItem(InventorySlot slot)
+    private void SellSingleItem(InventorySlot slot)
     {
         ItemData item = slot.GetItem();
-        int count = slot.GetCount();
-        int pointsToAdd = item.Count * count;
+        int currentCount = slot.GetCount();
 
-        passivePoints.AddPoints(pointsToAdd);
-        slot.ClearSlot();
+        // Если предметов больше одного - уменьшаем количество, иначе очищаем слот
+        if (currentCount > 1)
+        {
+            slot.SetItem(item, currentCount - 1);
+        }
+        else
+        {
+            slot.ClearSlot();
+        }
+
+        // Начисляем очки за 1 предмет
+        passivePoints.AddPoints(item.Count);
         inventorySystem.SaveInventory();
 
-        Debug.Log($"Sold {count}x {item.displayName} for {pointsToAdd} points");
+        Debug.Log($"Sold 1x {item.displayName} for {item.value} points. Remaining: {currentCount - 1}");
     }
 }

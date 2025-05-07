@@ -13,6 +13,7 @@ public class ScavSystem : MonoBehaviour
     [SerializeField] private Button btnScav;
     [SerializeField] private Button btnScavAdd;
     [SerializeField] private Button btnSkipCooldown;
+    [SerializeField] private Button btnSkipMissionTime;
     [SerializeField] private Button btnScavUpdate;
     [SerializeField] private Slider chanceSlider;
     [SerializeField] private TextMeshProUGUI txtChanceValue;
@@ -39,6 +40,7 @@ public class ScavSystem : MonoBehaviour
     public YandexGame yandexGame;
     private const int REWARD_AD_ID_ADD_LOOT = 1;
     private const int REWARD_AD_ID_SKIP_COOLDOWN = 2;
+    private const int REWARD_AD_ID_SKIP_MISSION_TIME = 3;
 
     [SerializeField] private UltimateOpenPanelManager panelManager;
 
@@ -55,6 +57,7 @@ public class ScavSystem : MonoBehaviour
         btnScav.onClick.AddListener(SendScav);
         btnScavAdd.onClick.AddListener(ScavAddReward);
         btnSkipCooldown.onClick.AddListener(SkipCooldown);
+        btnSkipMissionTime.onClick.AddListener(SkipMissionTime);
         btnScavUpdate.onClick.AddListener(CheckInventoryAndReturn);
         pointsSystem = FindObjectOfType<PassivePoints>();
         perksSystem = FindObjectOfType<PerksSystem>(); // Инициализация системы перков
@@ -252,6 +255,11 @@ public class ScavSystem : MonoBehaviour
 
         YandexGame.RewVideoShow(REWARD_AD_ID_SKIP_COOLDOWN);
     }
+    private void SkipMissionTime()
+    {
+        if (!isOnMission) return;
+        YandexGame.RewVideoShow(REWARD_AD_ID_SKIP_MISSION_TIME);
+    }
 
     private void UpdateUI()
     {
@@ -263,11 +271,13 @@ public class ScavSystem : MonoBehaviour
 
                 btnScavUpdate.gameObject.SetActive(!hasSpace);
                 txtScav.text = hasSpace ? "Дикий возвращается..." : "Недостаточно места в инвентаре";
+                btnSkipMissionTime.gameObject.SetActive(false); // Скрыть кнопку
             }
             else
             {
                 txtScav.text = "Дикий верёнтся через:";
                 btnScavUpdate.gameObject.SetActive(false);
+                btnSkipMissionTime.gameObject.SetActive(true); // Показать кнопку
             }
 
             btnScav.interactable = false;
@@ -281,6 +291,7 @@ public class ScavSystem : MonoBehaviour
             btnScavAdd.interactable = false;
             btnScavUpdate.gameObject.SetActive(false);
             btnSkipCooldown.gameObject.SetActive(true);
+            btnSkipMissionTime.gameObject.SetActive(false);
         }
         else
         {
@@ -290,6 +301,7 @@ public class ScavSystem : MonoBehaviour
             txtScavTimer.text = "";
             btnScavUpdate.gameObject.SetActive(false);
             btnSkipCooldown.gameObject.SetActive(false);
+            btnSkipMissionTime.gameObject.SetActive(false);
         }
     }
 
@@ -356,6 +368,14 @@ public class ScavSystem : MonoBehaviour
                 isOnCooldown = false;
                 UpdateUI();
                 SaveState();
+                break;
+            case REWARD_AD_ID_SKIP_MISSION_TIME:
+                if (isOnMission)
+                {
+                    currentTimer = 0f;
+                    UpdateUI();
+                    SaveState();
+                }
                 break;
 
             default:
