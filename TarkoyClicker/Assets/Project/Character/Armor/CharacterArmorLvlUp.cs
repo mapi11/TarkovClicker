@@ -4,11 +4,11 @@ public class CharacterArmorLvlUp : MonoBehaviour
 {
     [Header("Настройки брони")]
     public Transform armorParent; // Родительский объект для брони
-    public GameObject[] armorPrefabs; // Префабы брони (10, 20, 30... уровни)
+    public GameObject[] armorPrefabs;
 
     [Header("Настройки шлемов")]
     public Transform helmetParent; // Родительский объект для шлемов
-    public GameObject[] helmetPrefabs; // Префабы шлемов (5, 10, 15... уровни)
+    public GameObject[] helmetPrefabs;
 
     private GameObject currentArmorInstance;
     private GameObject currentHelmetInstance;

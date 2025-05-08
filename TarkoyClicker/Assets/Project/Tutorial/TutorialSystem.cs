@@ -104,7 +104,7 @@ public class TutorialSystem : MonoBehaviour
         // Обновляем счетчик
         if (_slideCounterText != null)
         {
-            _slideCounterText.text = $"Слайд {_currentSlideIndex + 1}/{_slides.Count}";
+            _slideCounterText.text = $"{_currentSlideIndex + 1}/{_slides.Count}";
         }
     }
 

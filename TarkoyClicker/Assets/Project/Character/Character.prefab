@@ -3267,7 +3267,16 @@ MonoBehaviour:
   - {fileID: 4637903854114070313, guid: c3af90f67fe5eeb42b04ff5f7901db0b, type: 3}
   helmetParent: {fileID: 6039522123362702582}
   helmetPrefabs:
-  - {fileID: 705937289505624792, guid: 24d2d1c2b7109bf41a661c5b6faee3ff, type: 3}
+  - {fileID: 8859205050424413508, guid: a864363d0ec5ca74b96fef4e42b5457b, type: 3}
+  - {fileID: 8859205050424413508, guid: a864363d0ec5ca74b96fef4e42b5457b, type: 3}
+  - {fileID: 8859205050424413508, guid: f87d387907d7f0e4b85770acbd30587a, type: 3}
+  - {fileID: 8859205050424413508, guid: f87d387907d7f0e4b85770acbd30587a, type: 3}
+  - {fileID: 8859205050424413508, guid: cdf1d265efe53cf4d8e7d6bf301fe1d3, type: 3}
+  - {fileID: 8859205050424413508, guid: cdf1d265efe53cf4d8e7d6bf301fe1d3, type: 3}
+  - {fileID: 8859205050424413508, guid: 5a66d8e349551ca4c8e8943eba9c5e15, type: 3}
+  - {fileID: 8859205050424413508, guid: 5a66d8e349551ca4c8e8943eba9c5e15, type: 3}
+  - {fileID: 8859205050424413508, guid: f97db320395f4af4d8b140fa0b8fb7c6, type: 3}
+  - {fileID: 8859205050424413508, guid: f97db320395f4af4d8b140fa0b8fb7c6, type: 3}
 --- !u!1 &3098166291882454426
 GameObject:
   m_ObjectHideFlags: 0
@@ -3728,7 +3737,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   staminaPerk:
     name: 
-    level: 0
+    level: 20
     currentProgress: 0
     nextLevelRequirement: 1
     progressMultiplier: 1.1
@@ -3738,7 +3747,7 @@ MonoBehaviour:
     levelText: {fileID: 8691484432004076980}
   powerPerk:
     name: 
-    level: 0
+    level: 20
     currentProgress: 0
     nextLevelRequirement: 1
     progressMultiplier: 1.1
