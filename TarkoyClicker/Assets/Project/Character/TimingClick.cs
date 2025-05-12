@@ -252,6 +252,11 @@ public class TimingClick : MonoBehaviour
     {
         if (IsArmBroken) return;
 
+        foreach (Transform child in _spawnParent)
+        {
+            Destroy(child.gameObject);
+        }
+
         _spawnedObject = Instantiate(_spawnPrefab, _spawnParent);
         float randomScale = Random.Range(_scaleRange.x, _scaleRange.y);
         _spawnedObject.transform.localScale = new Vector3(randomScale, randomScale, 1f);

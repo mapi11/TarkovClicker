@@ -200,7 +200,7 @@ public class PerksSystem : MonoBehaviour
 
         if (perk.levelText != null)
         {
-            perk.levelText.text = $"Lv.{perk.level} (+{perk.CurrentBonus * 100:F1}%)";
+            perk.levelText.text = $"Lvl.{perk.level} (+{perk.CurrentBonus * 100:F1}%)";
         }
     }
 
@@ -223,7 +223,7 @@ public class PerksSystem : MonoBehaviour
 
     private void UpdateCharacterLevelUI()
     {
-        if (_txtCharacterLvl != null) _txtCharacterLvl.text = $"Level: {_characterLevel}";
+        if (_txtCharacterLvl != null) _txtCharacterLvl.text = $"Lvl: {_characterLevel}";
 
         if (_characterLevelSlider != null)
         {
